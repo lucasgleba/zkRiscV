@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "circom_tester": "^0.0.9",
+    "circomlib": "^2.0.2"
+  }
+}
