@@ -31,7 +31,7 @@ function Operator(bits) {
   };
   this._toSigned = function (value) {
     if (value >= maxValueP1 / 2) {
-      return maxValueP1 - value;
+      return - (maxValueP1 - value);
     } else {
       return value;
     }

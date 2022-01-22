@@ -16,7 +16,6 @@ async function testOperator(circuit, opName, aTestSet, bTestSet) {
     for (let jj = 0; jj < bTestSet.length; jj++) {
       const [aa, bb] = [aTestSet[ii], bTestSet[jj]];
       const out = operator.execute(opcode, aa, bb);
-      console.log(aa, bb, out);
       const w = await circuit.calculateWitness(
         { a: aa, b: bb, opcode: opcode },
         true
@@ -49,7 +48,7 @@ describe("alu", function () {
     });
     ["add", "sub", "xor", "or", "and", "slt", "sltu"].forEach(
       (opName) => {
-        xit(opName, async () => {
+        it(opName, async () => {
           await testOperator(circuit, opName, testSet, testSet);
         });
       }
@@ -62,7 +61,7 @@ describe("alu", function () {
       }
     );
   });
-  xdescribe("immLoader", function () {
+  describe("immLoader", function () {
     before(async () => {
       circuit = await getWasmTester("immLoader.test.circom");
     });
