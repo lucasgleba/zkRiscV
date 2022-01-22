@@ -1,2 +1,6 @@
 node_modules
 *.test.r1cs
+
+artifacts
+cache
+build

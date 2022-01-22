@@ -1,6 +1,12 @@
 {
   "dependencies": {
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
     "circom_tester": "^0.0.9",
-    "circomlib": "^2.0.2"
+    "circomlib": "^2.0.2",
+    "hardhat-gas-reporter": "^1.0.7"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.4",
+    "hardhat": "^2.8.2"
   }
 }
