@@ -1,11 +1,13 @@
 pragma circom 2.0.2;
 
+// TODO: circom 2.0.3 [?]
+
 include "./gates.circom";
 
 template Operator(bits) {
     signal input a;
     signal input b;
-    signal input funct;
+    signal input opcode;
     signal output out;
 
     // TODO: Num2Bits vs Num2Bits_strict
@@ -34,7 +36,7 @@ template Operator(bits) {
     }
 
     component funcBits = Num2Bits(bits);
-    funcBits.in <== funct;
+    funcBits.in <== opcode;
 
     for (var ii = 0; ii < 4; ii++) {
         mux.s[ii] <== funcBits.out[ii];
@@ -56,7 +58,7 @@ template ALU(bits) {
     signal input imm;
     signal input useImm;
     signal input pc;
-    signal input funct;
+    signal input opcode;
     signal output out;
     signal output pcOut;
 
@@ -68,11 +70,9 @@ template ALU(bits) {
     component operator = Operator(bits);
     operator.a <== r1;
     operator.b <== op2.out;
-    operator.funct <== funct;
+    operator.opcode <== opcode;
 
     out <== op2.out;
     pcOut <== pc + 1;
 
 }
-
-component main = ALU(32);
