@@ -5,6 +5,7 @@ include "../node_modules/circomlib/circuits/mux4.circom";
 include "../node_modules/circomlib/circuits/bitify.circom";
 include "../node_modules/circomlib/circuits/binsum.circom";
 include "../node_modules/circomlib/circuits/binsub.circom";
+include "../node_modules/circomlib/circuits/gates.circom";
 
 template MultiMux5(n) {
     signal input in[n][32];
@@ -85,5 +86,17 @@ template Shifter32(bits, right) {
     }
     for (var ii = 0; ii < bits; ii++) {
         out[ii] <== mux.out[ii];
+    }
+}
+
+template MultiXOR(bits) {
+    signal input in[2][bits];
+    signal output out[bits];
+    component xors[bits];
+    for (var ii = 0; ii < bits; ii++) {
+        xors[ii] = XOR();
+        xors[ii].a <== in[0][ii];
+        xors[ii].b <== in[1][ii];
+        out[ii] <== xors[ii].out;
     }
 }

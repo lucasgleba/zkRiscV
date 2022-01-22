@@ -4,6 +4,8 @@ function Operator(bits) {
   maxValueP1 = 2 ** bits;
   this.rawOps = {
     add: (aa, bb) => aa + bb,
+    sub: (aa, bb) => aa - bb,
+    xor: (aa, bb) => aa ^ bb,
   };
   this.fitToBits = function (value) {
     value = value % maxValueP1;
@@ -21,6 +23,8 @@ function Operator(bits) {
   }
   this.opNamesByCode = {
     0: "add",
+    1: "sub",
+    2: "xor",
   };
   this.opsByCode = {};
   this.opcodes = {};

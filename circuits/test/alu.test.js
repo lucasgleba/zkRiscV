@@ -28,7 +28,13 @@ describe("alu", function () {
       circuit = await getWasmTester("operator.test.circom");
     });
     it("add", async () => {
-      testOp(circuit, "add");
+      await testOp(circuit, "add");
+    });
+    it("sub", async () => {
+      await testOp(circuit, "sub");
+    });
+    it("xor", async () => {
+      await testOp(circuit, "xor");
     });
   });
 });

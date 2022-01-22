@@ -17,19 +17,26 @@ template Operator(bits) {
     bBits.in <== b;
 
     component mux = MultiMux4(bits);
-    component sum = BinSum(bits, 2);
-    // component sub = BinSub(bits);
+    component add = BinSum(bits, 2);
+    component sub = BinSub(bits);
+    component xor = MultiXOR(bits);
 
     for (var ii = 0; ii < bits; ii++) {
-        sum.in[0][ii] <== aBits.out[ii];
-        sum.in[1][ii] <== bBits.out[ii];
+        add.in[0][ii] <== aBits.out[ii];
+        add.in[1][ii] <== bBits.out[ii];
+        sub.in[0][ii] <== aBits.out[ii];
+        sub.in[1][ii] <== bBits.out[ii];
+        xor.in[0][ii] <== aBits.out[ii];
+        xor.in[1][ii] <== bBits.out[ii];
     }
     
     for (var ii = 0; ii < bits; ii++) {
-        mux.c[ii][0] <== sum.out[ii];
+        mux.c[ii][0] <== add.out[ii];
+        mux.c[ii][1] <== sub.out[ii];
+        mux.c[ii][2] <== xor.out[ii];
     }
 
-    for (var ii = 1; ii < 16; ii++) {
+    for (var ii = 3; ii < 16; ii++) {
         for (var jj = 0; jj < bits; jj++) {
             mux.c[jj][ii] <== 0;
         }
