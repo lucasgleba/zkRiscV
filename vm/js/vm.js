@@ -11,11 +11,20 @@ function Operator(bits) {
     sfl: (aa, bb) => aa << bb,
     srl: (aa, bb) => aa >>> bb,
     sra: (aa, bb) => aa >> bb,
+    slt: (aa, bb) => this.toSigned(aa) < this.toSigned(bb) ? 1 : 0,
+    sltu: (aa, bb) => aa < bb ? 1 : 0,
   };
   this.fitToBits = function (value) {
     value = value % maxValueP1;
     return value < 0 ? maxValueP1 + value : value;
   };
+  this.toSigned = function (value) {
+    if (value >= maxValueP1 / 2) {
+      return maxValueP1 - value;
+    } else {
+      return value;
+    }
+  }
   this.opWrapper = function (op) {
     function wrapped() {
       return self.fitToBits(op(...arguments));
@@ -35,6 +44,8 @@ function Operator(bits) {
     5: "sfl",
     6: "srl",
     7: "sra",
+    8: "slt",
+    9: "sltu",
   };
   this.opsByCode = {};
   this.opcodes = {};
@@ -43,6 +54,7 @@ function Operator(bits) {
     this.opsByCode[opcode] = this.ops[opName];
     this.opcodes[opName] = opcode;
   }
+  // aa, bb are two's complement if negative
   this.execute = function (aa, bb, opcode) {
     const op = this.opsByCode[opcode];
     if (op == undefined) {

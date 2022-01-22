@@ -1,6 +1,7 @@
 pragma circom 2.0.2;
 
 // TODO: circom 2.0.3 [?]
+// TODO: don't do with bin what you can do with dec
 
 include "./gates.circom";
 
@@ -19,7 +20,9 @@ template Operator(bits) {
     component mux = MultiMux4(bits);
 
     component add = BinSum(bits, 2);
-    component sub = BinSub(bits);
+    component sub = BinSub(bits + 1);
+    sub.in[0][bits] <== 0;
+    sub.in[1][bits] <== 0;
     component xor = BitwiseXOR(bits);
     component or = BitwiseOR(bits);
     component and = BitwiseAND(bits);
@@ -48,7 +51,7 @@ template Operator(bits) {
         sra.in[0][ii] <== aBits.out[ii];
         sra.in[1][ii] <== bBits.out[ii];
     }
-    
+
     for (var ii = 0; ii < bits; ii++) {
         mux.c[ii][0] <== add.out[ii];
         mux.c[ii][1] <== sub.out[ii];
@@ -60,7 +63,15 @@ template Operator(bits) {
         mux.c[ii][7] <== sra.out[ii];
     }
 
-    for (var ii = 8; ii < 16; ii++) {
+    mux.c[0][8] <== sub.out[bits - 1];
+    mux.c[0][9] <== sub.out[bits];
+
+    for (var ii = 1; ii < bits; ii++) {
+        mux.c[ii][8] <== 0;
+        mux.c[ii][9] <== 0;
+    }
+
+    for (var ii = 10; ii < 16; ii++) {
         for (var jj = 0; jj < bits; jj++) {
             mux.c[jj][ii] <== 0;
         }

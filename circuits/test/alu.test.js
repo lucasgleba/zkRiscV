@@ -30,7 +30,7 @@ describe("alu", function () {
     before(async () => {
       circuit = await getWasmTester("operator.test.circom");
     });
-    ["add", "sub", "xor", "or", "and"].forEach(
+    ["add", "sub", "xor", "or", "and", "slt", "sltu"].forEach(
       (opName) => {
         it(opName, async () => {
           await testOp(circuit, opName, testSet, testSet);
