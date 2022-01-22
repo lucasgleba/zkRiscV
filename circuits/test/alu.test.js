@@ -9,13 +9,16 @@ const testSet = [0, 1, 2, maxValueP1 - 1, maxValueP1 - 2];
 
 const operator = new Operator(BITS);
 
-async function testOp(circuit, opName) {
+async function testOp(circuit, opName, testSetA, testSetB) {
   const opcode = operator.opcodes[opName];
-  for (let ii = 0; ii < testSet.length; ii++) {
-    for (let jj = 0; jj < testSet.length; jj++) {
-      const [aa, bb] = [testSet[ii], testSet[jj]];
+  for (let ii = 0; ii < testSetA; ii++) {
+    for (let jj = 0; jj < testSetB; jj++) {
+      const [aa, bb] = [testSetA[ii], testSetB[jj]];
       const out = operator.execute(aa, bb, opcode);
-      const w = await circuit.calculateWitness({ a: aa, b: bb, opcode: opcode }, true);
+      const w = await circuit.calculateWitness(
+        { a: aa, b: bb, opcode: opcode },
+        true
+      );
       await circuit.assertOut(w, { out: out });
     }
   }
@@ -23,24 +26,23 @@ async function testOp(circuit, opName) {
 
 describe("alu", function () {
   let circuit;
-  describe("operator", function() {
+  describe("operator", function () {
     before(async () => {
       circuit = await getWasmTester("operator.test.circom");
     });
-    it("add", async () => {
-      await testOp(circuit, "add");
-    });
-    it("sub", async () => {
-      await testOp(circuit, "sub");
-    });
-    it("xor", async () => {
-      await testOp(circuit, "xor");
-    });
-    it("or", async () => {
-      await testOp(circuit, "or");
-    });
-    it("and", async () => {
-      await testOp(circuit, "and");
-    });
+    ["add", "sub", "xor", "or", "and"].forEach(
+      (opName) => {
+        it(opName, async () => {
+          await testOp(circuit, opName, testSet, testSet);
+        });
+      }
+    );
+    ["sfl", "srl", "sra"].forEach(
+      (opName) => {
+        it(opName, async () => {
+          await testOp(circuit, opName, testSet, testSet.slice(0, 3));
+        });
+      }
+    );
   });
 });

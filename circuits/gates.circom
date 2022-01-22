@@ -8,26 +8,16 @@ include "../node_modules/circomlib/circuits/binsub.circom";
 include "../node_modules/circomlib/circuits/gates.circom";
 
 template MultiMux5(n) {
-    signal input in[n][32];
+    signal input c[n][32];
     signal input s[5];
-    signal output out[n][32];
-    component mux4s[2];
-    mux4s[0] = MultiMux4(n);
-    mux4s[1] = MultiMux4(n);
-    component mux1 = MultiMux1(n);
-    for (var ii = 0; ii < 2; ii++) {
-        for (var kk = 0; kk < n; kk++) {
-            for (var jj = 0; jj < 16; jj++) {
-                mux4s[ii].c[kk][jj] <== in[kk][ii * 16 + jj];
-            }
-            mux1.c[kk][ii] <== mux4s.out[kk];
+    signal output out[n];
+    component mux4a = MultiMux4(n);
+    component mux4b = MultiMux4(n);
+    for (var ii = 0; ii < 16; ii++) {
+        for (var jj = 0; jj < n; jj++) {
+            mux4a.c[jj][ii] <== c[jj][ii];
+            mux4b.c[jj][ii] <== c[jj][16 + ii];
         }
-        for (var jj = 0; jj < 4; jj++) {
-            mux4s[ii].s[jj] <== s[jj];
-        }
-    }
-    for (var kk = 0; kk < n; kk++) {
-        out[kk] <== mux1.out[kk];
     }
 }
 
@@ -51,38 +41,60 @@ template RightShifter(bits) {
     }
 }
 
-template Shifter32(bits, right) {
+template RightShifter32(bits) {
     assert(bits == 32);
-    signal input in[bits];
-    signal input shift[5];
+    signal input in[2][bits];
     signal input k;
     signal output out[bits];
-    component shifters[bits - 1];
     component mux = MultiMux5(bits);
     for (var ii = 0; ii < bits; ii++) {
-        mux.c[ii][0] <== in[ii];
+        mux.c[ii][0] <== in[0][ii];
+    }
+    component shifters[bits - 1];
+    for (var ii = 0; ii < bits - 1; ii++) {
+        shifters[ii] = RightShifter(bits);
     }
     for (var ii = 0; ii < bits - 1; ii++) {
-        if (right == 1) {
-            shifters[ii] = RightShifter(bits);
-            // for (var jj = 0; jj < ii + 1; jj++) {
-            //     mux.c[jj][ii] <== k;
-            // }
-            // for (var jj = ii + 1; jj < bits; jj++) {
-            //     mux.c[jj][ii] <== mux.c[jj + 1][ii - 1];
-            // }
-        } else {
-            shifters[ii] = LeftShifter(bits);
-        }
-        var shifter = shifters[ii];
-        shifter.k <== k;
+        shifters[ii].k <== k;
         for (var jj = 0; jj < bits; jj++) {
-            shifter.in[jj] <== mux[ii].c[jj];
-            mux[ii + 1].c[jj] <== shifter.out[jj];
+            shifters[ii].in[jj] <== mux.c[jj][ii];
+        }
+        for (var jj = 0; jj < bits; jj++) {
+            mux.c[jj][ii + 1] <== shifters[ii].out[jj];
         }
     }
     for (var ii = 0; ii < 5; ii++) {
-        mux.s[ii] <== shift[ii];
+        mux.s[ii] <== in[1][ii];
+    }
+    for (var ii = 0; ii < bits; ii++) {
+        out[ii] <== mux.out[ii];
+    }
+}
+
+template LeftShifter32(bits) {
+    assert(bits == 32);
+    signal input in[2][bits];
+    signal input k;
+    signal output out[bits];
+    component mux = MultiMux5(bits);
+    for (var ii = 0; ii < bits; ii++) {
+        mux.c[ii][0] <== in[0][ii];
+    }
+    component shifters[bits - 1];
+    for (var ii = 0; ii < bits - 1; ii++) {
+        shifters[ii] = LeftShifter(bits);
+    }
+    for (var ii = 0; ii < bits - 1; ii++) {
+        shifters[ii].k <== k;
+        for (var jj = 0; jj < bits; jj++) {
+            shifters[ii].in[jj] <== mux.c[jj][ii];
+        }
+        for (var jj = 0; jj < bits; jj++) {
+            mux.c[jj][ii + 1] <== shifters[ii].out[jj];
+        }
+    }
+    for (var ii = 0; ii < 5; ii++) {
+        mux.s[ii] <== in[1][ii];
     }
     for (var ii = 0; ii < bits; ii++) {
         out[ii] <== mux.out[ii];

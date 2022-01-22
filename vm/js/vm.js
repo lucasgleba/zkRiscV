@@ -8,6 +8,9 @@ function Operator(bits) {
     xor: (aa, bb) => aa ^ bb,
     or: (aa, bb) => aa | bb,
     and: (aa, bb) => aa & bb,
+    sfl: (aa, bb) => aa << bb,
+    srl: (aa, bb) => aa >>> bb,
+    sra: (aa, bb) => aa >> bb,
   };
   this.fitToBits = function (value) {
     value = value % maxValueP1;
@@ -29,6 +32,9 @@ function Operator(bits) {
     2: "xor",
     3: "or",
     4: "and",
+    5: "sfl",
+    6: "srl",
+    7: "sra",
   };
   this.opsByCode = {};
   this.opcodes = {};

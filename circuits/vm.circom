@@ -17,12 +17,18 @@ template Operator(bits) {
     bBits.in <== b;
 
     component mux = MultiMux4(bits);
-    
+
     component add = BinSum(bits, 2);
     component sub = BinSub(bits);
     component xor = BitwiseXOR(bits);
     component or = BitwiseOR(bits);
     component and = BitwiseAND(bits);
+    component sll = LeftShifter32(32);
+    component srl = RightShifter32(32);
+    component sra = RightShifter32(32);
+    sll.k <== 0;
+    srl.k <== 0;
+    sra.k <== aBits.out[bits - 1];
 
     for (var ii = 0; ii < bits; ii++) {
         add.in[0][ii] <== aBits.out[ii];
@@ -35,6 +41,12 @@ template Operator(bits) {
         or.in[1][ii] <== bBits.out[ii];
         and.in[0][ii] <== aBits.out[ii];
         and.in[1][ii] <== bBits.out[ii];
+        sll.in[0][ii] <== aBits.out[ii];
+        sll.in[1][ii] <== bBits.out[ii];
+        srl.in[0][ii] <== aBits.out[ii];
+        srl.in[1][ii] <== bBits.out[ii];
+        sra.in[0][ii] <== aBits.out[ii];
+        sra.in[1][ii] <== bBits.out[ii];
     }
     
     for (var ii = 0; ii < bits; ii++) {
@@ -43,9 +55,12 @@ template Operator(bits) {
         mux.c[ii][2] <== xor.out[ii];
         mux.c[ii][3] <== or.out[ii];
         mux.c[ii][4] <== and.out[ii];
+        mux.c[ii][5] <== sll.out[ii];
+        mux.c[ii][6] <== srl.out[ii];
+        mux.c[ii][7] <== sra.out[ii];
     }
 
-    for (var ii = 5; ii < 16; ii++) {
+    for (var ii = 8; ii < 16; ii++) {
         for (var jj = 0; jj < bits; jj++) {
             mux.c[jj][ii] <== 0;
         }
