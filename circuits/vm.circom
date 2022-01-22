@@ -8,8 +8,12 @@ include "./gates.circom";
 template Operator(bits) {
     signal input a;
     signal input b;
+    signal input pc;
     signal input opcode;
     signal output out;
+    signal output pcOut;
+
+    pcOut <== pc + 1;
 
     // TODO: Num2Bits vs Num2Bits_strict
     component aBits = Num2Bits(bits);
@@ -99,6 +103,8 @@ template ImmLoader(bits) {
     signal input pc;
     signal input opcode;
     signal output out;
+    signal output pcOut;
+    pcOut <== pc + 1;
     out <== (imm * 2**12) + pc * opcode;
 }
 
@@ -122,7 +128,9 @@ template Brancher(bits) {
     signal input imm;
     signal input pc;
     signal input eq;
+    signal output out;
     signal output pcOut;
+    out <== 0;
     component mux = Mux1();
     mux.c[0] <== pc + 1;
     mux.c[1] <== pc + imm;
@@ -133,37 +141,62 @@ template Brancher(bits) {
 }
 
 template ALU(bits) {
-    signal input r1;
-    signal input r2;
+    signal input rs1;
+    signal input rs2;
     signal input imm;
     signal input useImm;
     signal input pc;
-    signal input opcode1;
-    signal input opcode2;
+    signal input iOpcode;
+    signal input fOpcode;
+    signal input eqOpcode;
     signal output out;
     signal output pcOut;
 
     component op2 = Mux1();
-    op2.c[0] <== r2;
+    op2.c[0] <== rs2;
     op2.c[1] <== imm;
     op2.s <== useImm;
 
     component operator = Operator(bits);
-    operator.a <== r1;
+    operator.a <== rs1;
     operator.b <== op2.out;
-    operator.opcode <== opcode2;
+    operator.pc <== pc;
+    operator.opcode <== fOpcode;
 
     component immLoader = ImmLoader(bits);
     immLoader.imm <== imm;
     immLoader.pc <== pc;
-    immLoader.opcode <== opcode2;
+    immLoader.opcode <== fOpcode;
+    
+    component jumper = Jumper(bits);
+    jumper.rs1 <== rs1;
+    jumper.imm <== imm;
+    jumper.pc <== pc;
+    jumper.opcode <== fOpcode;
+    
+    component brancher = Brancher(bits);
+    brancher.cmp <== operator.out;
+    brancher.imm <== imm;
+    brancher.pc <== pc;
+    brancher.eq <== eqOpcode;
 
-    component mux = Mux1();
-    mux.c[0] <== operator.out;
-    mux.c[1] <== immLoader.out;
-    mux.s <== opcode1;
+    component iOpcodeBits = Num2Bits(2);
+    iOpcodeBits.in <== iOpcode;
 
-    out <== mux.out;
-    pcOut <== pc + 1;
+    component iMux = Mux2();
+    iMux.c[0][0] <== operator.out;
+    iMux.c[1][0] <== operator.pcOut;
+    iMux.c[0][1] <== immLoader.out;
+    iMux.c[1][1] <== immLoader.pcOut;
+    iMux.c[0][2] <== jumper.out;
+    iMux.c[1][2] <== jumper.pcOut;
+    iMux.c[0][3] <== brancher.out;
+    iMux.c[1][3] <== brancher.pcOut;
+    for (var ii = 0; ii < 2; ii++) {
+        iMux.s[ii] <== iOpcodeBits[ii];
+    }
+
+    out <== iMux.out[0];
+    pcOut <== iMux.out[1];
 
 }

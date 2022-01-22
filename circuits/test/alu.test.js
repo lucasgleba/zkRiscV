@@ -19,7 +19,7 @@ async function testOperator(circuit, opName, aTestSet, bTestSet) {
       const [aa, bb] = [aTestSet[ii], bTestSet[jj]];
       const out = operator.execute(opcode, aa, bb);
       const w = await circuit.calculateWitness(
-        { a: aa, b: bb, opcode: opcode },
+        { a: aa, b: bb, opcode: opcode, pc: 0 },
         true
       );
       await circuit.assertOut(w, { out: out });
