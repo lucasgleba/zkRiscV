@@ -36,5 +36,11 @@ describe("alu", function () {
     it("xor", async () => {
       await testOp(circuit, "xor");
     });
+    it("or", async () => {
+      await testOp(circuit, "or");
+    });
+    it("and", async () => {
+      await testOp(circuit, "and");
+    });
   });
 });
