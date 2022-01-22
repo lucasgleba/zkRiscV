@@ -183,7 +183,7 @@ template ALU(bits) {
     component iOpcodeBits = Num2Bits(2);
     iOpcodeBits.in <== iOpcode;
 
-    component iMux = Mux2();
+    component iMux = MultiMux2(2);
     iMux.c[0][0] <== operator.out;
     iMux.c[1][0] <== operator.pcOut;
     iMux.c[0][1] <== immLoader.out;
@@ -193,10 +193,12 @@ template ALU(bits) {
     iMux.c[0][3] <== brancher.out;
     iMux.c[1][3] <== brancher.pcOut;
     for (var ii = 0; ii < 2; ii++) {
-        iMux.s[ii] <== iOpcodeBits[ii];
+        iMux.s[ii] <== iOpcodeBits.out[ii];
     }
 
     out <== iMux.out[0];
     pcOut <== iMux.out[1];
 
 }
+
+// component main = ALU(32);
