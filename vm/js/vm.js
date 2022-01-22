@@ -71,7 +71,6 @@ function Operator(bits) {
 
 function ImmLoader(bits) {
   bits = bits || 32;
-  maxValueP1 = 2 ** bits;
   this.ops = {
     lui: (imm, pc) => imm << 12,
     auipc: (imm, pc) => pc + (imm << 12),
@@ -90,7 +89,28 @@ function ImmLoader(bits) {
   };
 }
 
+function Jumper(bits) {
+  bits = bits || 32;
+  this.ops = {
+    jal: (rs1, imm, pc) => [pc + 1, pc + imm],
+    jalr: (rs1, imm, pc) => [pc + 1, rs1 + imm],
+  };
+  this.opNamesByCode = {
+    0: "jal",
+    1: "jalr",
+  };
+  [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
+  this.execute = function (opcode, rs1, imm, pc) {
+    const op = this.opsByCode[opcode];
+    if (op == undefined) {
+      throw "opcode not valid";
+    }
+    return op(rs1, imm, pc);
+  };
+}
+
 module.exports = {
   Operator,
   ImmLoader,
+  Jumper
 };

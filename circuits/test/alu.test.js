@@ -1,4 +1,4 @@
-const { Operator, ImmLoader } = require("../../vm/js/vm");
+const { Operator, ImmLoader, Jumper } = require("../../vm/js/vm");
 
 const { getWasmTester } = require("./utils");
 
@@ -9,6 +9,7 @@ const testSet = [0, 1, 2, maxValueP1 - 1, maxValueP1 - 2];
 
 const operator = new Operator(BITS);
 const immLoader = new ImmLoader(BITS);
+const jumper = new Jumper(BITS);
 
 async function testOperator(circuit, opName, aTestSet, bTestSet) {
   const opcode = operator.opcodes[opName];
@@ -40,26 +41,39 @@ async function testImmLoader(circuit, opName, immTestSet, pcTestSet) {
   }
 }
 
+async function testJumper(circuit, opName, rs1TestSet, immTestSet, pcTestSet) {
+  const opcode = jumper.opcodes[opName];
+  for (let ii = 0; ii < rs1TestSet.length; ii++) {
+    for (let jj = 0; jj < immTestSet.length; jj++) {
+      for (let kk = 0; kk < pcTestSet.length; kk++) {
+        const [rs1, imm, pc] = [rs1TestSet[ii], immTestSet[jj], pcTestSet[kk]];
+        const [out, pcOut] = jumper.execute(opcode, rs1, imm, pc);
+        const w = await circuit.calculateWitness(
+          { rs1: rs1, imm: imm, pc: pc, opcode: opcode },
+          true
+        );
+        await circuit.assertOut(w, { out: out, pcOut: pcOut });
+      }
+    }
+  }
+}
+
 describe("alu", function () {
   let circuit;
   describe("operator", function () {
     before(async () => {
       circuit = await getWasmTester("operator.test.circom");
     });
-    ["add", "sub", "xor", "or", "and", "slt", "sltu"].forEach(
-      (opName) => {
-        it(opName, async () => {
-          await testOperator(circuit, opName, testSet, testSet);
-        });
-      }
-    );
-    ["sll", "srl", "sra"].forEach(
-      (opName) => {
-        it(opName, async () => {
-          await testOperator(circuit, opName, testSet, testSet.slice(0, 3));
-        });
-      }
-    );
+    ["add", "sub", "xor", "or", "and", "slt", "sltu"].forEach((opName) => {
+      it(opName, async () => {
+        await testOperator(circuit, opName, testSet, testSet);
+      });
+    });
+    ["sll", "srl", "sra"].forEach((opName) => {
+      it(opName, async () => {
+        await testOperator(circuit, opName, testSet, testSet.slice(0, 3));
+      });
+    });
   });
   describe("immLoader", function () {
     before(async () => {
@@ -68,6 +82,16 @@ describe("alu", function () {
     ["lui", "auipc"].forEach((opName) => {
       it(opName, async () => {
         await testImmLoader(circuit, opName, testSet.slice(0, 3), testSet);
+      });
+    });
+  });
+  describe("immLoader", function () {
+    before(async () => {
+      circuit = await getWasmTester("jumper.test.circom");
+    });
+    ["jal", "jalr"].forEach((opName) => {
+      it(opName, async () => {
+        await testJumper(circuit, opName, testSet, testSet, testSet);
       });
     });
   });

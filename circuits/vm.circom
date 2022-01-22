@@ -102,6 +102,21 @@ template ImmLoader(bits) {
     out <== (imm * 2**12) + pc * opcode;
 }
 
+template Jumper(bits) {
+    signal input rs1;
+    signal input imm;
+    signal input pc;
+    signal input opcode;
+    signal output out;
+    signal output pcOut;
+    out <== pc + 1;
+    component mux = Mux1();
+    mux.c[0] <== pc + imm;
+    mux.c[1] <== rs1 + imm;
+    mux.s <== opcode;
+    pcOut <== mux.out;
+}
+
 template ALU(bits) {
     signal input r1;
     signal input r2;
