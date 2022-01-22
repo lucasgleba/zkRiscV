@@ -1,4 +1,4 @@
-const { Operator, ImmLoader, Jumper } = require("../../vm/js/vm");
+const { Operator, ImmLoader, Jumper, Brancher } = require("../../vm/js/vm");
 
 const { getWasmTester } = require("./utils");
 
@@ -10,6 +10,7 @@ const testSet = [0, 1, 2, maxValueP1 - 1, maxValueP1 - 2];
 const operator = new Operator(BITS);
 const immLoader = new ImmLoader(BITS);
 const jumper = new Jumper(BITS);
+const brancher = new Brancher(BITS);
 
 async function testOperator(circuit, opName, aTestSet, bTestSet) {
   const opcode = operator.opcodes[opName];
@@ -58,6 +59,33 @@ async function testJumper(circuit, opName, rs1TestSet, immTestSet, pcTestSet) {
   }
 }
 
+// rs1Test, rs2Test, immTest, pcTest
+async function testBrancher(circuit, opName, testSet) {
+  const opcode = brancher.opcodes[opName];
+  for (let ii = 0; ii < testSet.length; ii++) {
+    for (let jj = 0; jj < testSet.length; jj++) {
+      for (let kk = 0; kk < testSet.length; kk++) {
+        for (let ll = 0; ll < testSet.length; ll++) {
+          const [rs1, rs2, imm, pc] = [
+            testSet[ii],
+            testSet[jj],
+            testSet[kk],
+            testSet[ll],
+          ];
+          const pcOut = brancher.execute(opcode, rs1, rs2, imm, pc);
+          const cmp = brancher._preops[opName](rs1, rs2);
+          const eq = opcode % 2 == 0 ? 1 : 0;
+          const w = await circuit.calculateWitness(
+            { cmp: cmp, imm: imm, pc: pc, eq: eq },
+            true
+          );
+          await circuit.assertOut(w, { pcOut: pcOut });
+        }
+      }
+    }
+  }
+}
+
 describe("alu", function () {
   let circuit;
   describe("operator", function () {
@@ -85,13 +113,23 @@ describe("alu", function () {
       });
     });
   });
-  describe("immLoader", function () {
+  describe("jumper", function () {
     before(async () => {
       circuit = await getWasmTester("jumper.test.circom");
     });
     ["jal", "jalr"].forEach((opName) => {
       it(opName, async () => {
         await testJumper(circuit, opName, testSet, testSet, testSet);
+      });
+    });
+  });
+  describe("brancher", function () {
+    before(async () => {
+      circuit = await getWasmTester("brancher.test.circom");
+    });
+    ["beq", "bne", "blt", "bge", "bltu", "bgeu"].forEach((opName) => {
+      it(opName, async () => {
+        await testBrancher(circuit, opName, testSet);
       });
     });
   });

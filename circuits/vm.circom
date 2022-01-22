@@ -117,6 +117,21 @@ template Jumper(bits) {
     pcOut <== mux.out;
 }
 
+template Brancher(bits) {
+    signal input cmp;
+    signal input imm;
+    signal input pc;
+    signal input eq;
+    signal output pcOut;
+    component mux = Mux1();
+    mux.c[0] <== pc + 1;
+    mux.c[1] <== pc + imm;
+    component zr = IsZero();
+    zr.in <== cmp;
+    mux.s <== zr.out * eq;
+    pcOut <== mux.out;
+}
+
 template ALU(bits) {
     signal input r1;
     signal input r2;

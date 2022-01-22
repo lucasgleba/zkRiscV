@@ -22,8 +22,8 @@ function Operator(bits) {
     sll: (aa, bb) => aa << bb,
     srl: (aa, bb) => aa >>> bb,
     sra: (aa, bb) => aa >> bb,
-    slt: (aa, bb) => this._toSigned(aa) < this._toSigned(bb) ? 1 : 0,
-    sltu: (aa, bb) => aa < bb ? 1 : 0,
+    slt: (aa, bb) => (this._toSigned(aa) < this._toSigned(bb) ? 1 : 0),
+    sltu: (aa, bb) => (aa < bb ? 1 : 0),
   };
   this._fitToBits = function (value) {
     value = value % maxValueP1;
@@ -31,11 +31,11 @@ function Operator(bits) {
   };
   this._toSigned = function (value) {
     if (value >= maxValueP1 / 2) {
-      return - (maxValueP1 - value);
+      return -(maxValueP1 - value);
     } else {
       return value;
     }
-  }
+  };
   this._opWrapper = function (op) {
     function wrapped() {
       return self._fitToBits(op(...arguments));
@@ -109,8 +109,55 @@ function Jumper(bits) {
   };
 }
 
+function Brancher(bits) {
+  bits = bits || 32;
+  this._branch = function (cmp, imm, pc, eq) {
+    return cmp == 0 && eq ? pc + imm : pc + 1;
+  };
+  this._operator = new Operator(bits);
+  this._preops = {
+    beq: this._operator.ops.sub,
+    bne: this._operator.ops.sub,
+    blt: this._operator.ops.slt,
+    bge: this._operator.ops.slt,
+    bltu: this._operator.ops.slt,
+    bgeu: this._operator.ops.slt,
+  };
+  this.ops = {
+    beq: (rs1, rs2, imm, pc) =>
+      this._branch(this._preops.beq(rs1, rs2), imm, pc, 1),
+    bne: (rs1, rs2, imm, pc) =>
+      this._branch(this._preops.bne(rs1, rs2), imm, pc, 0),
+    blt: (rs1, rs2, imm, pc) =>
+      this._branch(this._preops.blt(rs1, rs2), imm, pc, 1),
+    bge: (rs1, rs2, imm, pc) =>
+      this._branch(this._preops.bge(rs1, rs2), imm, pc, 0),
+    bltu: (rs1, rs2, imm, pc) =>
+      this._branch(this._preops.bltu(rs1, rs2), imm, pc, 1),
+    bgeu: (rs1, rs2, imm, pc) =>
+      this._branch(this._preops.bgeu(rs1, rs2), imm, pc, 0),
+  };
+  this.opNamesByCode = {
+    0: "beq",
+    1: "bne",
+    2: "blt",
+    3: "bge",
+    4: "bltu",
+    5: "bgeu",
+  };
+  [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
+  this.execute = function (opcode, rs1, rs2, imm, pc) {
+    const op = this.opsByCode[opcode];
+    if (op == undefined) {
+      throw "opcode not valid";
+    }
+    return op(rs1, rs2, imm, pc);
+  };
+}
+
 module.exports = {
   Operator,
   ImmLoader,
-  Jumper
+  Jumper,
+  Brancher,
 };
