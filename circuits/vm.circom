@@ -2,6 +2,8 @@ pragma circom 2.0.2;
 
 // TODO: circom 2.0.3 [?]
 // TODO: don't do with bin what you can do with dec
+// TODO: optimize
+// TODO: size-limit pc, out [?]
 
 include "./gates.circom";
 

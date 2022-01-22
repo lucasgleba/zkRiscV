@@ -1,4 +1,10 @@
-const { Operator, ImmLoader, Jumper, Brancher } = require("../../vm/js/vm");
+const {
+  Operator,
+  ImmLoader,
+  Jumper,
+  Brancher,
+  ALU,
+} = require("../../vm/js/vm");
 
 const { getWasmTester } = require("./utils");
 
@@ -11,6 +17,7 @@ const operator = new Operator(BITS);
 const immLoader = new ImmLoader(BITS);
 const jumper = new Jumper(BITS);
 const brancher = new Brancher(BITS);
+const alu = new ALU(BITS);
 
 async function testOperator(circuit, opName, aTestSet, bTestSet) {
   const opcode = operator.opcodes[opName];
@@ -86,6 +93,75 @@ async function testBrancher(circuit, opName, testSet) {
   }
 }
 
+async function testALU(circuit) {
+  const testSet = [0, 1, maxValueP1 - 1];
+  for (let ii = 0; ii < testSet.length; ii++) {
+    for (let jj = 0; jj < testSet.length; jj++) {
+      for (let kk = 0; kk < 2; kk++) {
+        for (let ll = 0; ll < testSet.length; ll++) {
+          const [rs1, rs2, imm, pc] = [
+            testSet[ii],
+            testSet[jj],
+            testSet[kk],
+            testSet[ll],
+          ];
+          for (let useImm = 0; useImm < 1; useImm++) {
+            for (let ins = 0; ins < 4; ins++) {
+              for (let func = 0; func < [10, 2, 2, 6][ins]; func++) {
+                for (let eq = 0; eq < 2; eq++) {
+                  const [out, pcOut] = alu.execute(
+                    rs1,
+                    rs2,
+                    imm,
+                    useImm,
+                    pc,
+                    ins,
+                    func,
+                    eq
+                  );
+                  // imm: 4294967295
+                  // ins: 1
+                  // funct: 0 
+                  // -4096 0
+                  const w = await circuit.calculateWitness(
+                    {
+                      rs1: rs1,
+                      rs2: rs2,
+                      imm: imm,
+                      useImm: useImm,
+                      pc: pc,
+                      iOpcode: ins,
+                      fOpcode: func,
+                      eqOpcode: eq,
+                    },
+                    true
+                  );
+                  // console.log({
+                  //   rs1: rs1,
+                  //   rs2: rs2,
+                  //   imm: imm,
+                  //   useImm: useImm,
+                  //   pc: pc,
+                  //   ins: ins,
+                  //   func: func,
+                  //   eq: eq,
+                  //   out: out,
+                  //   pcOut: pcOut,
+                  // });
+                  await circuit.assertOut(w, {
+                    out: out,
+                    pcOut: pcOut,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 describe("alu", function () {
   let circuit;
   describe("operator", function () {
@@ -132,5 +208,10 @@ describe("alu", function () {
         await testBrancher(circuit, opName, testSet);
       });
     });
+  });
+  it("alu", async function() {
+    this.timeout(30000);
+    circuit = await getWasmTester("alu.test.circom");
+    await testALU(circuit);
   });
 });

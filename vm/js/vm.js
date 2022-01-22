@@ -155,9 +155,37 @@ function Brancher(bits) {
   };
 }
 
+function ALU(bits) {
+  bits = bits || 32;
+  this.operator = new Operator(bits);
+  this.immLoader = new ImmLoader(bits);
+  this.jumper = new Jumper(bits);
+  this.brancher = new Brancher(bits);
+  this.execute = function(rs1, rs2, imm, useImm, pc, iOpcode, fOpcode, eqOpcode) {
+    let pcOut = pc + 1;
+    let out;
+    if (iOpcode == 0) {
+      const bb = useImm ? imm : rs2;
+      out = this.operator.execute(fOpcode, rs1, bb);
+    } else if (iOpcode == 1) {
+      out = this.immLoader.execute(fOpcode, imm, pc);
+    } else if (iOpcode == 2) {
+      [out, pcOut] = this.jumper.execute(fOpcode, rs1, imm, pc);
+    } else if (iOpcode == 3) {
+      const cmp = this.operator.execute(fOpcode, rs1, rs2);
+      pcOut = this.brancher._branch(cmp, imm, pc, eqOpcode);
+      out = 0;
+    } else {
+      throw "iOpcode not valid";
+    }
+    return [out, pcOut];
+  }
+}
+
 module.exports = {
   Operator,
   ImmLoader,
   Jumper,
   Brancher,
+  ALU
 };
