@@ -19,6 +19,19 @@ template MultiMux5(n) {
             mux4b.c[jj][ii] <== c[jj][16 + ii];
         }
     }
+    for (var ii = 0; ii < 4; ii++) {
+        mux4a.s[ii] <== s[ii];
+        mux4b.s[ii] <== s[ii];
+    }
+    component mux1 = MultiMux1(n);
+    for (var ii = 0; ii < n; ii++) {
+        mux1.c[ii][0] <== mux4a.out[ii];
+        mux1.c[ii][1] <== mux4b.out[ii];
+    }
+    mux1.s <== s[4];
+    for (var ii = 0; ii < n; ii++) {
+        out[ii] <== mux1.out[ii];
+    }
 }
 
 template LeftShifter(bits) {

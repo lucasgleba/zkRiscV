@@ -94,13 +94,22 @@ template Operator(bits) {
 
 }
 
+template ImmLoader(bits) {
+    signal input imm;
+    signal input pc;
+    signal input opcode;
+    signal output out;
+    out <== (imm * 2**12) + pc * opcode;
+}
+
 template ALU(bits) {
     signal input r1;
     signal input r2;
     signal input imm;
     signal input useImm;
     signal input pc;
-    signal input opcode;
+    signal input opcode1;
+    signal input opcode2;
     signal output out;
     signal output pcOut;
 
@@ -112,9 +121,19 @@ template ALU(bits) {
     component operator = Operator(bits);
     operator.a <== r1;
     operator.b <== op2.out;
-    operator.opcode <== opcode;
+    operator.opcode <== opcode2;
 
-    out <== op2.out;
+    component immLoader = ImmLoader(bits);
+    immLoader.imm <== imm;
+    immLoader.pc <== pc;
+    immLoader.opcode <== opcode2;
+
+    component mux = Mux1();
+    mux.c[0] <== operator.out;
+    mux.c[1] <== immLoader.out;
+    mux.s <== opcode1;
+
+    out <== mux.out;
     pcOut <== pc + 1;
 
 }
