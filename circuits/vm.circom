@@ -4,8 +4,7 @@ pragma circom 2.0.2;
 // TODO: don't do with bin what you can do with dec
 // TODO: optimize
 // TODO: size-limit pc, out [?]
-// TODO: extend imm in ins fetch [?]
-// TODO: sign extend
+// TODO: computator instead of operator [?]
 
 include "./gates.circom";
 
@@ -109,7 +108,7 @@ template ImmLoader(bits) {
     signal output out;
     signal output pcOut;
     pcOut <== pc + 4;
-    out <== (imm * 2**12) + pc * opcode;
+    out <== imm + pc * opcode;
 }
 
 template Jumper(bits) {
@@ -121,8 +120,8 @@ template Jumper(bits) {
     signal output pcOut;
     out <== pc + 4;
     component mux = Mux1();
-    mux.c[0] <== pc + imm;
-    mux.c[1] <== rs1 + imm * 2;
+    mux.c[0] <== pc + imm; // jal
+    mux.c[1] <== rs1 + imm; // jalr
     mux.s <== opcode;
     pcOut <== mux.out;
 }
@@ -137,7 +136,7 @@ template Brancher(bits) {
     out <== 0;
     component mux = Mux1();
     mux.c[0] <== pc + 4;
-    mux.c[1] <== pc + imm * 2; // [?]
+    mux.c[1] <== pc + imm; // [?]
     component zr = IsZero();
     zr.in <== cmp;
     mux.s <== zr.out * eq;
@@ -259,6 +258,10 @@ U auipc     00101
             xxxx1
 */
 
+function signExtension (dataLength, wordLength) {
+    return (2 ** (wordLength - dataLength) - 1) * 2 ** dataLength;
+}
+
 template InsDecoder() {
     signal input ins;
     signal output rd; // ok
@@ -273,12 +276,12 @@ template InsDecoder() {
     component insBin = Num2Bits(32);
     insBin.in <== ins;
 
-    component r_sMux = Mux1();
-    component rs_iMux = Mux1();
-    component u_rsiMux = Mux1();
-    component ib_ursiMux = Mux1();
-    component i_bMux = Mux1();
-    component j_ibursiMux = Mux1();
+    component r_sMux = MultiMux1(2);
+    component rs_iMux = MultiMux1(2);
+    component u_rsiMux = MultiMux1(2);
+    component ib_ursiMux = MultiMux1(2);
+    component i_bMux = MultiMux1(2);
+    component j_ibursiMux = MultiMux1(2);
 
     r_sMux.s <== insBin.out[2 + 2];
     rs_iMux.s <== insBin.out[3 + 2];
@@ -287,21 +290,44 @@ template InsDecoder() {
     i_bMux.s <== insBin.out[0 + 2];
     j_ibursiMux.s <== insBin.out[1 + 2];
     
-    r_sMux.c[0] <== 2; // s
-    r_sMux.c[1] <== 0; // r
-    rs_iMux.c[0] <== 10; // i
-    rs_iMux.c[1] <== r_sMux.out; // rs
-    u_rsiMux.c[0] <== rs_iMux.out; // rsi
-    u_rsiMux.c[1] <== 4; // u
-    i_bMux.c[0] <== 3; // b
-    i_bMux.c[1] <== 1; // i
-    ib_ursiMux.c[0] <== u_rsiMux.out; // ursi
-    ib_ursiMux.c[1] <== i_bMux.out; // ib
-    j_ibursiMux.c[0] <== ib_ursiMux.out; // ibursi
-    j_ibursiMux.c[1] <== 5; // j
+    r_sMux.c[0][0] <== 2; // s
+    r_sMux.c[1][0] <== signExtension(7, 32); // s
+    
+    r_sMux.c[0][1] <== 0; // r
+    r_sMux.c[1][1] <== 0; // r
+    
+    rs_iMux.c[0][0] <== 1; // i
+    rs_iMux.c[1][0] <== signExtension(12, 32); // i
+    
+    rs_iMux.c[0][1] <== r_sMux.out[0]; // rs
+    rs_iMux.c[1][1] <== r_sMux.out[1]; // rs
+    
+    u_rsiMux.c[0][0] <== rs_iMux.out[0]; // rsi
+    u_rsiMux.c[1][0] <== rs_iMux.out[1]; // rsi
+    
+    u_rsiMux.c[0][1] <== 4; // u
+    u_rsiMux.c[1][1] <== 0; // u
+    
+    i_bMux.c[0][0] <== 3; // b
+    i_bMux.c[1][0] <== signExtension(13, 32); // b
+    
+    i_bMux.c[0][1] <== 1; // i
+    i_bMux.c[1][1] <== signExtension(12, 32); // i
+    
+    ib_ursiMux.c[0][0] <== u_rsiMux.out[0]; // ursi
+    ib_ursiMux.c[1][0] <== u_rsiMux.out[1]; // ursi
+    
+    ib_ursiMux.c[0][1] <== i_bMux.out[0]; // ib
+    ib_ursiMux.c[1][1] <== i_bMux.out[1]; // ib
+    
+    j_ibursiMux.c[0][0] <== ib_ursiMux.out[0]; // ibursi
+    j_ibursiMux.c[1][0] <== ib_ursiMux.out[1]; // ibursi
+    
+    j_ibursiMux.c[0][1] <== 5; // j
+    j_ibursiMux.c[1][1] <== signExtension(20, 32); // j
 
     component insTypeBin = Num2Bits(3);
-    insTypeBin.in <== j_ibursiMux.out;
+    insTypeBin.in <== j_ibursiMux.out[0];
 
     component rs1Num = Bits2Num(5);
     component rs2Num = Bits2Num(5);
@@ -346,13 +372,13 @@ template InsDecoder() {
     uj_sbiImmMux.s <== insTypeBin.out[2];
 
     signal rawImm;
-    rawImm <== uj_sbiImmMux.out;
+    rawImm <== uj_sbiImmMux.out + j_ibursiMux.out[1] * insBin.out[31]; // mux imm sign extended
 
     component s12_rawImmMux = Mux1();
     component s1_12rImmMux = Mux1();
     s12_rawImmMux.c[0] <== rawImm;
     s12_rawImmMux.c[1] <== rawImm * 2 ** 12;
-    s12_rawImmMux.s <== insTypeBin.out[0];
+    s12_rawImmMux.s <== insTypeBin.out[2];
     s1_12rImmMux.c[0] <== s12_rawImmMux.out;
     s1_12rImmMux.c[1] <== rawImm * 2;
     component immOr = OR();
@@ -361,6 +387,7 @@ template InsDecoder() {
     s1_12rImmMux.s <== immOr.out;
 
     imm <== s1_12rImmMux.out;
+    // imm <== rawImm;
 
     insOpcode <== 0;
     funcOpcode <== 0;

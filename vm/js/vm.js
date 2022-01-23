@@ -1,3 +1,58 @@
+/**
+ * Scaffold emulator, follows circuit structure
+ */
+
+function assertSize(value, maxSize) {
+  if (value >= 2 ** maxSize) {
+    throw "value too big";
+  }
+}
+
+function assertSize32(value) {
+  assertSize(value, 32);
+}
+
+function assertAllSize32(...values) {
+  values.forEach((val) => assertSize32(val));
+}
+
+// TODO: cache powers of two [?]
+function toSigned(value, size) {
+  size = size || 32;
+  pow2_size = 2 ** size;
+  return value >= pow2_size / 2 ? -(pow2_size - value) : value;
+}
+
+function fitToBits(value, size) {
+  size = size || 32;
+  pow2_size = 2 ** size;
+  value = value % pow2_size;
+  return value < 0 ? pow2_size + value : value;
+}
+
+function fitToBitsBin(value, size) {
+  size = size || 32;
+  return value.slice(value.length - size, value.length).padStart(size, "0");
+}
+
+function signExtend(value, ogSize, newSize) {
+  newSize = newSize || 32;
+  pow2_ogSize = 2 ** ogSize;
+  if (value >= pow2_ogSize) {
+    throw "value >= pow2_ogSize";
+  }
+  if (value >= pow2_ogSize / 2) {
+    return (2 ** (newSize - ogSize) - 1) * pow2_ogSize + value;
+  } else {
+    return value;
+  }
+}
+
+function signExtendBin(value, newSize) {
+  newSize = newSize || 32;
+  return value.padStart(newSize, value[0]);
+}
+
 function opDicts(ops, opNamesByCode) {
   opsByCode = {};
   opcodes = {};
@@ -9,36 +64,23 @@ function opDicts(ops, opNamesByCode) {
   return [opsByCode, opcodes];
 }
 
-function Operator(bits) {
+function Operator() {
   self = this;
-  bits = bits || 32;
-  maxValueP1 = 2 ** bits;
   this._rawOps = {
     add: (aa, bb) => aa + bb,
     sub: (aa, bb) => aa - bb,
     xor: (aa, bb) => aa ^ bb,
     or: (aa, bb) => aa | bb,
     and: (aa, bb) => aa & bb,
-    sll: (aa, bb) => aa << bb,
-    srl: (aa, bb) => aa >>> bb,
-    sra: (aa, bb) => aa >> bb,
-    slt: (aa, bb) => (this._toSigned(aa) < this._toSigned(bb) ? 1 : 0),
+    sll: (aa, bb) => aa << fitToBits(bb, 5),
+    srl: (aa, bb) => aa >>> fitToBits(bb, 5),
+    sra: (aa, bb) => aa >> fitToBits(bb, 5),
+    slt: (aa, bb) => (toSigned(aa) < toSigned(bb) ? 1 : 0),
     sltu: (aa, bb) => (aa < bb ? 1 : 0),
-  };
-  this._fitToBits = function (value) {
-    value = value % maxValueP1;
-    return value < 0 ? maxValueP1 + value : value;
-  };
-  this._toSigned = function (value) {
-    if (value >= maxValueP1 / 2) {
-      return -(maxValueP1 - value);
-    } else {
-      return value;
-    }
   };
   this._opWrapper = function (op) {
     function wrapped() {
-      return self._fitToBits(op(...arguments));
+      return fitToBits(op(...arguments));
     }
     return wrapped;
   };
@@ -59,8 +101,9 @@ function Operator(bits) {
     9: "sltu",
   };
   [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
-  // aa, bb are two's complement if negative
+  // aa, bb are two's complement 32 bit
   this.execute = function (opcode, aa, bb) {
+    assertAllSize32(aa, bb);
     const op = this.opsByCode[opcode];
     if (op == undefined) {
       throw "opcode not valid";
@@ -69,11 +112,10 @@ function Operator(bits) {
   };
 }
 
-function ImmLoader(bits) {
-  bits = bits || 32;
+function ImmLoader() {
   this.ops = {
-    lui: (imm, pc) => imm << 12,
-    auipc: (imm, pc) => pc + (imm << 12),
+    lui: (imm, pc) => imm, // << 12,
+    auipc: (imm, pc) => pc + imm, // (imm << 12),
   };
   this.opNamesByCode = {
     0: "lui",
@@ -81,6 +123,7 @@ function ImmLoader(bits) {
   };
   [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
   this.execute = function (opcode, imm, pc) {
+    assertAllSize32(imm, pc);
     const op = this.opsByCode[opcode];
     if (op == undefined) {
       throw "opcode not valid";
@@ -89,11 +132,11 @@ function ImmLoader(bits) {
   };
 }
 
-function Jumper(bits) {
-  bits = bits || 32;
+function Jumper() {
   this.ops = {
-    jal: (rs1, imm, pc) => [pc + 4, pc + imm * 2],
-    jalr: (rs1, imm, pc) => [pc + 4, rs1 + imm * 2],
+    // out, pc
+    jal: (rs1, imm, pc) => [pc + 4, pc + imm],
+    jalr: (rs1, imm, pc) => [pc + 4, rs1 + imm],
   };
   this.opNamesByCode = {
     0: "jal",
@@ -101,6 +144,7 @@ function Jumper(bits) {
   };
   [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
   this.execute = function (opcode, rs1, imm, pc) {
+    assertAllSize32(rs1, imm, pc);
     const op = this.opsByCode[opcode];
     if (op == undefined) {
       throw "opcode not valid";
@@ -109,12 +153,11 @@ function Jumper(bits) {
   };
 }
 
-function Brancher(bits) {
-  bits = bits || 32;
+function Brancher() {
   this._branch = function (cmp, imm, pc, eq) {
-    return cmp == 0 && eq ? pc + imm * 2 : pc + 4;
+    return cmp == 0 && eq ? pc + imm : pc + 4;
   };
-  this._operator = new Operator(bits);
+  this._operator = new Operator();
   this._preops = {
     beq: this._operator.ops.sub,
     bne: this._operator.ops.sub,
@@ -147,6 +190,7 @@ function Brancher(bits) {
   };
   [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
   this.execute = function (opcode, rs1, rs2, imm, pc) {
+    assertAllSize32(rs1, rs2, imm, pc);
     const op = this.opsByCode[opcode];
     if (op == undefined) {
       throw "opcode not valid";
@@ -155,12 +199,11 @@ function Brancher(bits) {
   };
 }
 
-function ALU(bits) {
-  bits = bits || 32;
-  this.operator = new Operator(bits);
-  this.immLoader = new ImmLoader(bits);
-  this.jumper = new Jumper(bits);
-  this.brancher = new Brancher(bits);
+function ALU() {
+  this.operator = new Operator();
+  this.immLoader = new ImmLoader();
+  this.jumper = new Jumper();
+  this.brancher = new Brancher();
   this.insTypesByName = {
     operate: 0,
     loadImm: 1,
@@ -197,33 +240,40 @@ function ALU(bits) {
   };
 }
 
-// function InsDecoder() {}
-
-function _breakUpIns(ins) {
+// TODO: abstract
+function parseIns(ins) {
+  const opcode = ins.slice(25, 32);
+  const funct7 = parseInt(ins.slice(0, 7), 2);
+  const rs2 = parseInt(ins.slice(7, 12), 2);
+  const rs1 = parseInt(ins.slice(12, 17), 2);
+  const funct3 = parseInt(ins.slice(17, 20), 2);
+  const rd = parseInt(ins.slice(20, 25), 2);
+  const imm20_31 = parseInt(ins.slice(0, 12), 2);
+  const imm25_31__7_11 = parseInt(ins.slice(0, 7) + ins.slice(20, 25), 2);
+  const imm12_31 = parseInt(ins.slice(0, 20), 2);
   return {
-    opcode: ins.slice(25, 32),
-    funct7: parseInt(ins.slice(0, 7), 2),
-    rs2: parseInt(ins.slice(7, 12), 2),
-    rs1: parseInt(ins.slice(12, 17), 2),
-    funct3: parseInt(ins.slice(17, 20), 2),
-    rd: parseInt(ins.slice(20, 25), 2),
-    imm20_31: parseInt(ins.slice(0, 12), 2),
-    imm25_31__7_11: parseInt(ins.slice(0, 7) + ins.slice(20, 25), 2),
-    imm12_31: parseInt(ins.slice(0, 20), 2),
+    opcode,
+    funct7,
+    rs2,
+    rs1,
+    funct3,
+    rd,
+    imm20_31,
+    imm25_31__7_11,
+    imm12_31,
+    base: {
+      rd,
+      rs1,
+      rs2,
+      useImm: opcode[1] == "1" ? 0 : 1,
+    },
   };
-}
-
-function _getUseImm(ins) {
-  return ins.opcode[1] == "1" ? 0 : 1;
 }
 
 function decodeRIns(ins) {
   return {
-    rd: ins.rd,
-    rs1: ins.rs1,
-    rs2: ins.rs2,
+    ...ins.base,
     imm: ins.imm20_31,
-    useImm: _getUseImm(ins), // should be 0
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -231,11 +281,8 @@ function decodeRIns(ins) {
 }
 function decodeIIns(ins) {
   return {
-    rd: ins.rd,
-    rs1: ins.rs1,
-    rs2: ins.rs2,
-    imm: ins.imm20_31,
-    useImm: _getUseImm(ins), // should be 1
+    ...ins.base,
+    imm: signExtend(ins.imm20_31, 12, 32),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -244,11 +291,8 @@ function decodeIIns(ins) {
 
 function decodeSIns(ins) {
   return {
-    rd: ins.rd,
-    rs1: ins.rs1,
-    rs2: ins.rs2,
-    imm: ins.imm25_31__7_11,
-    useImm: _getUseImm(ins),
+    ...ins.base,
+    imm: signExtend(ins.imm25_31__7_11, 12, 32),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -257,11 +301,8 @@ function decodeSIns(ins) {
 
 function decodeBIns(ins) {
   return {
-    rd: ins.rd,
-    rs1: ins.rs1,
-    rs2: ins.rs2,
-    imm: ins.imm25_31__7_11 * 2,
-    useImm: _getUseImm(ins),
+    ...ins.base,
+    imm: signExtend(ins.imm25_31__7_11 * 2, 13, 32),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -270,11 +311,8 @@ function decodeBIns(ins) {
 
 function decodeUIns(ins) {
   return {
-    rd: ins.rd,
-    rs1: ins.rs1,
-    rs2: ins.rs2,
+    ...ins.base,
     imm: ins.imm12_31 * 2 ** 12,
-    useImm: _getUseImm(ins),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -283,11 +321,8 @@ function decodeUIns(ins) {
 
 function decodeJIns(ins) {
   return {
-    rd: ins.rd,
-    rs1: ins.rs1,
-    rs2: ins.rs2,
-    imm: ins.imm12_31 * 2,
-    useImm: _getUseImm(ins),
+    ...ins.base,
+    imm: signExtend(ins.imm12_31 * 2, 21, 32),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -309,13 +344,14 @@ function decodeIns(ins) {
     ".11001": decodeIIns,
     ".01101": decodeUIns,
     ".00101": decodeUIns,
-  }["." + opcode.slice(0, 5)](_breakUpIns(ins));
+  }["." + opcode.slice(0, 5)](parseIns(ins));
 }
 
-function _propsToBin(insData) {
+function propsTo32Bits(insData) {
   const newObj = {};
   for (const key in insData) {
-    newObj[key] = Number(insData[key]).toString(2);
+    const value = fitToBits(Number(insData[key]), 32);
+    newObj[key] = value.toString(2);
   }
   return newObj;
 }
@@ -325,26 +361,26 @@ function encodeOperateIns(insDataBin) {
   if (Number(insDataBin.useImm) == 0) {
     return (
       "0".repeat(7) +
-      insDataBin.rs2.padStart(5, "0") +
-      insDataBin.rs1.padStart(5, "0") +
+      fitToBitsBin(insDataBin.rs2, 5) +
+      fitToBitsBin(insDataBin.rs1, 5) +
       "0".repeat(3) +
-      insDataBin.rd.padStart(5, "0") +
+      fitToBitsBin(insDataBin.rd, 5) +
       "0110011"
     );
   } else {
     return (
-      insDataBin.imm.padStart(12, "0") +
-      insDataBin.rs1.padStart(5, "0") +
+      fitToBitsBin(insDataBin.imm, 12) +
+      fitToBitsBin(insDataBin.rs1, 5) +
       "0".repeat(3) +
-      insDataBin.rd.padStart(5, "0") +
-      "0110011"
+      fitToBitsBin(insDataBin.rd, 5) +
+      "0010011"
     );
   }
 }
 
 // TODO: check var size, abstract
 function encodeIns(insType, insData) {
-  const insDataBin = _propsToBin(insData);
+  const insDataBin = propsTo32Bits(insData);
   if (insType == "operate") {
     return encodeOperateIns(insDataBin, insData);
   }
