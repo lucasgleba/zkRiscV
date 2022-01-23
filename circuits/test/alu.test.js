@@ -93,66 +93,60 @@ async function testBrancher(circuit, opName, testSet) {
   }
 }
 
-async function testALU(circuit) {
-  const testSet = [0, 1, maxValueP1 - 1];
-  for (let ii = 0; ii < testSet.length; ii++) {
-    for (let jj = 0; jj < testSet.length; jj++) {
-      for (let kk = 0; kk < 2; kk++) {
-        for (let ll = 0; ll < testSet.length; ll++) {
+async function testALU(circuit, insType, testSet) {
+  const ins = alu.insTypesByName[insType];
+  for (let rs1Idx = 0; rs1Idx < [3, 1, 3, 3][ins]; rs1Idx++) {
+    for (let rs2Idx = 0; rs2Idx < [3, 1, 1, 3][ins]; rs2Idx++) {
+      for (let immIdx = 0; immIdx < 2; immIdx++) {
+        for (let pcIdx = 0; pcIdx < 2; pcIdx++) {
           const [rs1, rs2, imm, pc] = [
-            testSet[ii],
-            testSet[jj],
-            testSet[kk],
-            testSet[ll],
+            testSet[rs1Idx],
+            testSet[rs2Idx],
+            testSet[immIdx],
+            testSet[pcIdx],
           ];
-          for (let useImm = 0; useImm < 1; useImm++) {
-            for (let ins = 0; ins < 4; ins++) {
-              for (let func = 0; func < [10, 2, 2, 6][ins]; func++) {
-                for (let eq = 0; eq < 2; eq++) {
-                  const [out, pcOut] = alu.execute(
-                    rs1,
-                    rs2,
-                    imm,
-                    useImm,
-                    pc,
-                    ins,
-                    func,
-                    eq
-                  );
-                  // imm: 4294967295
-                  // ins: 1
-                  // funct: 0 
-                  // -4096 0
-                  const w = await circuit.calculateWitness(
-                    {
-                      rs1: rs1,
-                      rs2: rs2,
-                      imm: imm,
-                      useImm: useImm,
-                      pc: pc,
-                      iOpcode: ins,
-                      fOpcode: func,
-                      eqOpcode: eq,
-                    },
-                    true
-                  );
-                  // console.log({
-                  //   rs1: rs1,
-                  //   rs2: rs2,
-                  //   imm: imm,
-                  //   useImm: useImm,
-                  //   pc: pc,
-                  //   ins: ins,
-                  //   func: func,
-                  //   eq: eq,
-                  //   out: out,
-                  //   pcOut: pcOut,
-                  // });
-                  await circuit.assertOut(w, {
-                    out: out,
-                    pcOut: pcOut,
-                  });
-                }
+          for (let useImm = 0; useImm < (ins == 0 ? 2 : 1); useImm++) {
+            for (let func = 0; func < [10, 2, 2, 6][ins]; func++) {
+              for (let eq = 0; eq < (ins == 3 ? 2 : 1); eq++) {
+                const [out, pcOut] = alu.execute(
+                  rs1,
+                  rs2,
+                  imm,
+                  useImm,
+                  pc,
+                  ins,
+                  func,
+                  eq
+                );
+                const w = await circuit.calculateWitness(
+                  {
+                    rs1: rs1,
+                    rs2: rs2,
+                    imm: imm,
+                    useImm: useImm,
+                    pc: pc,
+                    insOpcode: ins,
+                    funcOpcode: func,
+                    eqOpcode: eq,
+                  },
+                  true
+                );
+                // console.log({
+                //   rs1: rs1,
+                //   rs2: rs2,
+                //   imm: imm,
+                //   useImm: useImm,
+                //   pc: pc,
+                //   ins: ins,
+                //   func: func,
+                //   eq: eq,
+                //   out: out,
+                //   pcOut: pcOut,
+                // });
+                await circuit.assertOut(w, {
+                  out: out,
+                  pcOut: pcOut,
+                });
               }
             }
           }
@@ -209,9 +203,24 @@ describe("alu", function () {
       });
     });
   });
-  it("alu", async function() {
+  describe("alu", async function() {
     this.timeout(30000);
-    circuit = await getWasmTester("alu.test.circom");
-    await testALU(circuit);
+    let circuit;
+    const testSet = [0, 1, maxValueP1 - 1];
+    before(async () => {
+      circuit = await getWasmTester("alu.test.circom");
+    });
+    it("operate", async () => {
+      await testALU(circuit, "operate", testSet);
+    });
+    it("immLoad", async () => {
+      await testALU(circuit, "immLoad", testSet);
+    });
+    it("jump", async () => {
+      await testALU(circuit, "jump", testSet);
+    });
+    it("branch", async () => {
+      await testALU(circuit, "branch", testSet);
+    });
   });
 });

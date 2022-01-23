@@ -148,8 +148,8 @@ template ALU(bits) {
     signal input imm;
     signal input useImm;
     signal input pc;
-    signal input iOpcode;
-    signal input fOpcode;
+    signal input insOpcode;
+    signal input funcOpcode;
     signal input eqOpcode;
     signal output out;
     signal output pcOut;
@@ -163,18 +163,18 @@ template ALU(bits) {
     operator.a <== rs1;
     operator.b <== op2.out;
     operator.pc <== pc;
-    operator.opcode <== fOpcode;
+    operator.opcode <== funcOpcode;
 
     component immLoader = ImmLoader(bits);
     immLoader.imm <== imm;
     immLoader.pc <== pc;
-    immLoader.opcode <== fOpcode;
+    immLoader.opcode <== funcOpcode;
     
     component jumper = Jumper(bits);
     jumper.rs1 <== rs1;
     jumper.imm <== imm;
     jumper.pc <== pc;
-    jumper.opcode <== fOpcode;
+    jumper.opcode <== funcOpcode;
     
     component brancher = Brancher(bits);
     brancher.cmp <== operator.out;
@@ -182,8 +182,8 @@ template ALU(bits) {
     brancher.pc <== pc;
     brancher.eq <== eqOpcode;
 
-    component iOpcodeBits = Num2Bits(2);
-    iOpcodeBits.in <== iOpcode;
+    component insOpcodeBits = Num2Bits(2);
+    insOpcodeBits.in <== insOpcode;
 
     component iMux = MultiMux2(2);
     iMux.c[0][0] <== operator.out;
@@ -195,7 +195,7 @@ template ALU(bits) {
     iMux.c[0][3] <== brancher.out;
     iMux.c[1][3] <== brancher.pcOut;
     for (var ii = 0; ii < 2; ii++) {
-        iMux.s[ii] <== iOpcodeBits.out[ii];
+        iMux.s[ii] <== insOpcodeBits.out[ii];
     }
 
     out <== iMux.out[0];

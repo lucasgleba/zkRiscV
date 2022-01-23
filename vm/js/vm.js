@@ -161,6 +161,12 @@ function ALU(bits) {
   this.immLoader = new ImmLoader(bits);
   this.jumper = new Jumper(bits);
   this.brancher = new Brancher(bits);
+  this.insTypesByName = {
+    "operate": 0,
+    "loadImm": 1,
+    "jump": 2,
+    "branch": 3,
+  }
   this.execute = function(rs1, rs2, imm, useImm, pc, iOpcode, fOpcode, eqOpcode) {
     let pcOut = pc + 1;
     let out;
