@@ -4,6 +4,8 @@ pragma circom 2.0.2;
 // TODO: don't do with bin what you can do with dec
 // TODO: optimize
 // TODO: size-limit pc, out [?]
+// TODO: extend imm in ins fetch [?]
+// TODO: sign extend imm size 20
 
 include "./gates.circom";
 
@@ -15,7 +17,7 @@ template Operator(bits) {
     signal output out;
     signal output pcOut;
 
-    pcOut <== pc + 1;
+    pcOut <== pc + 4;
 
     // TODO: Num2Bits vs Num2Bits_strict
     component aBits = Num2Bits(bits);
@@ -106,7 +108,7 @@ template ImmLoader(bits) {
     signal input opcode;
     signal output out;
     signal output pcOut;
-    pcOut <== pc + 1;
+    pcOut <== pc + 4;
     out <== (imm * 2**12) + pc * opcode;
 }
 
@@ -117,10 +119,10 @@ template Jumper(bits) {
     signal input opcode;
     signal output out;
     signal output pcOut;
-    out <== pc + 1;
+    out <== pc + 4;
     component mux = Mux1();
     mux.c[0] <== pc + imm;
-    mux.c[1] <== rs1 + imm;
+    mux.c[1] <== rs1 + imm * 2;
     mux.s <== opcode;
     pcOut <== mux.out;
 }
@@ -134,8 +136,8 @@ template Brancher(bits) {
     signal output pcOut;
     out <== 0;
     component mux = Mux1();
-    mux.c[0] <== pc + 1;
-    mux.c[1] <== pc + imm;
+    mux.c[0] <== pc + 4;
+    mux.c[1] <== pc + imm * 2; // [?]
     component zr = IsZero();
     zr.in <== cmp;
     mux.s <== zr.out * eq;
@@ -203,4 +205,167 @@ template ALU(bits) {
 
 }
 
-// component main = ALU(32);
+/*
+R operate-r 0110011 51  12  6   3   1   0
+I operate-i 0010011 19  4   2   1   0   0
+I load      0000011 3   0   0   0   0   0
+S store     0100011 35  8   4   2   1   0
+B branch    1100011 99  24  12  6   3   1
+J jal       1101111 111 27  13  6   3   1
+I jalr      1100111 103 25  12  6   3   1
+U lui       0110111 55  13  6   3   1   0
+U auipc     0010111 23  5   2   1   0   0
+
+I load      00000
+I operate-i 00100
+S store     01000
+R operate-r 01100
+            02200
+
+U lui       01101
+U auipc     00101
+            01202
+
+B branch    11000
+I jalr      11001
+            22001
+
+J jal       11011
+
+            36414
+
+R 0
+I 1
+U 2
+B 3
+J 4
+S 5
+
+R operate-r 01100
+            01100
+
+I operate-i 00100
+I jalr      11001
+I load      00000
+            xxx0x
+
+S store     01000
+B branch    11000
+            x1000
+
+J jal       11011
+U lui       01101
+U auipc     00101
+            xxxx1
+*/
+
+template InsDecoder() {
+    signal input ins;
+    signal output rd; // ok
+    signal output rs1; // ok
+    signal output rs2; // ok
+    signal output imm; // ok
+    signal output useImm; // ok
+    signal output insOpcode;
+    signal output funcOpcode;
+    signal output eqOpcode;
+
+    component insBin = Num2Bits(32);
+    insBin.in <== ins;
+
+    component r_sMux = Mux1();
+    component rs_iMux = Mux1();
+    component u_rsiMux = Mux1();
+    component ib_ursiMux = Mux1();
+    component i_bMux = Mux1();
+    component j_ibursiMux = Mux1();
+
+    r_sMux.s <== insBin.out[2 + 2];
+    rs_iMux.s <== insBin.out[3 + 2];
+    u_rsiMux.s <== insBin.out[0 + 2];
+    ib_ursiMux.s <== insBin.out[4 + 2];
+    i_bMux.s <== insBin.out[0 + 2];
+    j_ibursiMux.s <== insBin.out[1 + 2];
+    
+    r_sMux.c[0] <== 2; // s
+    r_sMux.c[1] <== 0; // r
+    rs_iMux.c[0] <== 10; // i
+    rs_iMux.c[1] <== r_sMux.out; // rs
+    u_rsiMux.c[0] <== rs_iMux.out; // rsi
+    u_rsiMux.c[1] <== 4; // u
+    i_bMux.c[0] <== 3; // b
+    i_bMux.c[1] <== 1; // i
+    ib_ursiMux.c[0] <== u_rsiMux.out; // ursi
+    ib_ursiMux.c[1] <== i_bMux.out; // ib
+    j_ibursiMux.c[0] <== ib_ursiMux.out; // ibursi
+    j_ibursiMux.c[1] <== 5; // j
+
+    component insTypeBin = Num2Bits(3);
+    insTypeBin.in <== j_ibursiMux.out;
+
+    component rs1Num = Bits2Num(5);
+    component rs2Num = Bits2Num(5);
+    component rdNum = Bits2Num(5);
+    for (var ii = 0; ii < 5; ii++) {
+        rs1Num.in[ii] <== insBin.out[15 + ii];
+        rs2Num.in[ii] <== insBin.out[20 + ii];
+        rdNum.in[ii] <== insBin.out[7 + ii];
+    }
+
+    rs1 <== rs1Num.out;
+    rs2 <== rs2Num.out;
+    rd <== rdNum.out * (1 - insTypeBin.out[1]);
+    useImm <== 1 - insBin.out[5];
+
+    component immINum = Bits2Num(12);
+    component immSBNum = Bits2Num(12);
+    component immUJNum = Bits2Num(20);
+
+    for (var ii = 0; ii < 12; ii++) {
+        immINum.in[ii] <== insBin.out[20 + ii];
+    }
+    for (var ii = 0; ii < 5; ii++) {
+        immSBNum.in[ii] <== insBin.out[7 + ii];
+    }
+    for (var ii = 0; ii < 7; ii++) {
+        immSBNum.in[5 + ii] <== insBin.out[25 + ii];
+    }
+    for (var ii = 0; ii < 20; ii++) {
+        immUJNum.in[ii] <== insBin.out[12 + ii];
+    }
+    
+    component sb_iImmMux = Mux1();
+    component uj_sbiImmMux = Mux1();
+
+    sb_iImmMux.c[0] <== immINum.out;
+    sb_iImmMux.c[1] <== immSBNum.out;
+    sb_iImmMux.s <== insTypeBin.out[1];
+
+    uj_sbiImmMux.c[0] <== sb_iImmMux.out;
+    uj_sbiImmMux.c[1] <== immUJNum.out;
+    uj_sbiImmMux.s <== insTypeBin.out[2];
+
+    signal rawImm;
+    rawImm <== uj_sbiImmMux.out;
+
+    component s12_rawImmMux = Mux1();
+    component s1_12rImmMux = Mux1();
+    s12_rawImmMux.c[0] <== rawImm;
+    s12_rawImmMux.c[1] <== rawImm * 2 ** 12;
+    s12_rawImmMux.s <== insTypeBin.out[0];
+    s1_12rImmMux.c[0] <== s12_rawImmMux.out;
+    s1_12rImmMux.c[1] <== rawImm * 2;
+    component immOr = OR();
+    immOr.a <== insTypeBin.out[0] * insTypeBin.out[1];
+    immOr.b <== insTypeBin.out[0] * insTypeBin.out[2];
+    s1_12rImmMux.s <== immOr.out;
+
+    imm <== s1_12rImmMux.out;
+
+    insOpcode <== 0;
+    funcOpcode <== 0;
+    eqOpcode <== 0;
+
+}
+
+// component main = InsDecoder();

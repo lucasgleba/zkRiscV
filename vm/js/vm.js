@@ -92,8 +92,8 @@ function ImmLoader(bits) {
 function Jumper(bits) {
   bits = bits || 32;
   this.ops = {
-    jal: (rs1, imm, pc) => [pc + 1, pc + imm],
-    jalr: (rs1, imm, pc) => [pc + 1, rs1 + imm],
+    jal: (rs1, imm, pc) => [pc + 4, pc + imm * 2],
+    jalr: (rs1, imm, pc) => [pc + 4, rs1 + imm * 2],
   };
   this.opNamesByCode = {
     0: "jal",
@@ -112,7 +112,7 @@ function Jumper(bits) {
 function Brancher(bits) {
   bits = bits || 32;
   this._branch = function (cmp, imm, pc, eq) {
-    return cmp == 0 && eq ? pc + imm : pc + 1;
+    return cmp == 0 && eq ? pc + imm * 2 : pc + 4;
   };
   this._operator = new Operator(bits);
   this._preops = {
@@ -162,13 +162,22 @@ function ALU(bits) {
   this.jumper = new Jumper(bits);
   this.brancher = new Brancher(bits);
   this.insTypesByName = {
-    "operate": 0,
-    "loadImm": 1,
-    "jump": 2,
-    "branch": 3,
-  }
-  this.execute = function(rs1, rs2, imm, useImm, pc, iOpcode, fOpcode, eqOpcode) {
-    let pcOut = pc + 1;
+    operate: 0,
+    loadImm: 1,
+    jump: 2,
+    branch: 3,
+  };
+  this.execute = function (
+    rs1,
+    rs2,
+    imm,
+    useImm,
+    pc,
+    iOpcode,
+    fOpcode,
+    eqOpcode
+  ) {
+    let pcOut = pc + 4;
     let out;
     if (iOpcode == 0) {
       const bb = useImm ? imm : rs2;
@@ -185,13 +194,134 @@ function ALU(bits) {
       throw "iOpcode not valid";
     }
     return [out, pcOut];
-  }
+  };
 }
+
+// function InsDecoder() {}
+
+function _breakUpIns(ins) {
+  return {
+    opcode: ins.slice(25, 32),
+    funct7: parseInt(ins.slice(0, 7), 2),
+    rs2: parseInt(ins.slice(7, 12), 2),
+    rs1: parseInt(ins.slice(12, 17), 2),
+    funct3: parseInt(ins.slice(17, 20), 2),
+    rd: parseInt(ins.slice(20, 25), 2),
+    imm20_31: parseInt(ins.slice(0, 12), 2),
+    imm25_31__7_11: parseInt(ins.slice(0, 7) + ins.slice(20, 25), 2),
+    imm12_31: parseInt(ins.slice(0, 20), 2),
+  };
+}
+
+function decodeRIns(ins) {
+  return {
+    rd: ins.rd,
+    rs1: ins.rs1,
+    rs2: ins.rs2,
+    imm: ins.imm20_31,
+    useImm: ins.opcode[1], // should be 0
+    insOpcode: 0,
+    funcOpcode: 0,
+    eqOpcode: 0,
+  };
+}
+function decodeIIns(ins) {
+  return {
+    rd: ins.rd,
+    rs1: ins.rs1,
+    rs2: ins.rs2,
+    imm: ins.imm20_31,
+    useImm: ins.opcode[1], // should be 1
+    insOpcode: 0,
+    funcOpcode: 0,
+    eqOpcode: 0,
+  };
+}
+
+function decodeSIns(ins) {
+  return {
+    rd: ins.rd,
+    rs1: ins.rs1,
+    rs2: ins.rs2,
+    imm: ins.imm25_31__7_11,
+    useImm: ins.opcode[1],
+    insOpcode: 0,
+    funcOpcode: 0,
+    eqOpcode: 0,
+  };
+}
+
+function decodeBIns(ins) {
+  return {
+    rd: ins.rd,
+    rs1: ins.rs1,
+    rs2: ins.rs2,
+    imm: ins.imm25_31__7_11 * 2,
+    useImm: ins.opcode[1],
+    insOpcode: 0,
+    funcOpcode: 0,
+    eqOpcode: 0,
+  };
+}
+
+function decodeUIns(ins) {
+  return {
+    rd: ins.rd,
+    rs1: ins.rs1,
+    rs2: ins.rs2,
+    imm: ins.imm12_31 * 2 ** 12,
+    useImm: ins.opcode[1],
+    insOpcode: 0,
+    funcOpcode: 0,
+    eqOpcode: 0,
+  };
+}
+
+function decodeJIns(ins) {
+  return {
+    rd: ins.rd,
+    rs1: ins.rs1,
+    rs2: ins.rs2,
+    imm: ins.imm12_31 * 2,
+    useImm: ins.opcode[1],
+    insOpcode: 0,
+    funcOpcode: 0,
+    eqOpcode: 0,
+  };
+}
+
+function decodeIns(ins) {
+  if (ins.length != 32) {
+    throw "ins length != 32";
+  }
+  opcode = ins.slice(32 - 7, 32);
+  return {
+    ".01100": decodeRIns,
+    ".00100": decodeIIns,
+    ".00000": decodeIIns,
+    ".01000": decodeSIns,
+    ".11000": decodeBIns,
+    ".11011": decodeJIns,
+    ".11001": decodeIIns,
+    ".01101": decodeUIns,
+    ".00101": decodeUIns,
+  }["." + opcode.slice(0, 5)](_breakUpIns(ins));
+}
+
+function _propsToBin(insData) {
+  const newObj = {};
+  for (const key in insData) {
+    newObj[key] == Number(insData).toString(2);
+  }
+  return newObj;
+}
+
+// function encodeIns(insType, insData) {}
 
 module.exports = {
   Operator,
   ImmLoader,
   Jumper,
   Brancher,
-  ALU
+  ALU,
 };
