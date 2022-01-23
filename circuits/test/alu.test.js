@@ -13,11 +13,11 @@ const BITS = 32;
 const maxValueP1 = 2 ** BITS;
 const testSet = [0, 1, 2, maxValueP1 - 1, maxValueP1 - 2];
 
-const operator = new Operator(BITS);
-const immLoader = new ImmLoader(BITS);
-const jumper = new Jumper(BITS);
-const brancher = new Brancher(BITS);
-const alu = new ALU(BITS);
+const operator = new Operator();
+const immLoader = new ImmLoader();
+const jumper = new Jumper();
+const brancher = new Brancher();
+const alu = new ALU();
 
 async function testOperator(circuit, opName, aTestSet, bTestSet) {
   const opcode = operator.opcodes[opName];
@@ -93,20 +93,25 @@ async function testBrancher(circuit, opName, testSet) {
   }
 }
 
-async function testALU(circuit, insType, testSet) {
+async function testALU(circuit, insType) {
+  const testSet = [0, 1, maxValueP1 - 1];
   const ins = alu.insTypesByName[insType];
   for (let rs1Idx = 0; rs1Idx < [3, 1, 3, 3][ins]; rs1Idx++) {
     for (let rs2Idx = 0; rs2Idx < [3, 1, 1, 3][ins]; rs2Idx++) {
-      for (let immIdx = 0; immIdx < 2; immIdx++) {
-        for (let pcIdx = 0; pcIdx < 2; pcIdx++) {
-          const [rs1, rs2, imm, pc] = [
-            testSet[rs1Idx],
-            testSet[rs2Idx],
-            testSet[immIdx],
-            testSet[pcIdx],
-          ];
-          for (let useImm = 0; useImm < (ins == 0 ? 2 : 1); useImm++) {
-            for (let func = 0; func < [10, 2, 2, 6][ins]; func++) {
+      for (let func = 0; func < [10, 2, 2, 6][ins]; func++) {
+        for (
+          let immIdx = 0;
+          immIdx < (ins == 0 && func >= 5 && func <= 7 ? 2 : 3);
+          immIdx++
+        ) {
+          for (let pcIdx = 0; pcIdx < 3; pcIdx++) {
+            const [rs1, rs2, imm, pc] = [
+              testSet[rs1Idx],
+              testSet[rs2Idx],
+              testSet[immIdx],
+              testSet[pcIdx],
+            ];
+            for (let useImm = 0; useImm < (ins == 0 ? 2 : 1); useImm++) {
               for (let eq = 0; eq < (ins == 3 ? 2 : 1); eq++) {
                 const [out, pcOut] = alu.execute(
                   rs1,
@@ -131,18 +136,6 @@ async function testALU(circuit, insType, testSet) {
                   },
                   true
                 );
-                // console.log({
-                //   rs1: rs1,
-                //   rs2: rs2,
-                //   imm: imm,
-                //   useImm: useImm,
-                //   pc: pc,
-                //   ins: ins,
-                //   func: func,
-                //   eq: eq,
-                //   out: out,
-                //   pcOut: pcOut,
-                // });
                 await circuit.assertOut(w, {
                   out: out,
                   pcOut: pcOut,
@@ -203,10 +196,9 @@ describe("alu", function () {
       });
     });
   });
-  describe("alu", async function() {
+  describe("alu", async function () {
     this.timeout(30000);
     let circuit;
-    const testSet = [0, 1, maxValueP1 - 1];
     before(async () => {
       circuit = await getWasmTester("alu.test.circom");
     });
