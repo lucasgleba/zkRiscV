@@ -5,7 +5,7 @@ pragma circom 2.0.2;
 // TODO: optimize
 // TODO: size-limit pc, out [?]
 // TODO: extend imm in ins fetch [?]
-// TODO: sign extend imm size 20
+// TODO: sign extend
 
 include "./gates.circom";
 

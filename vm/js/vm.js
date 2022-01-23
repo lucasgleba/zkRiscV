@@ -213,13 +213,17 @@ function _breakUpIns(ins) {
   };
 }
 
+function _getUseImm(ins) {
+  return ins.opcode[1] == "1" ? 0 : 1;
+}
+
 function decodeRIns(ins) {
   return {
     rd: ins.rd,
     rs1: ins.rs1,
     rs2: ins.rs2,
     imm: ins.imm20_31,
-    useImm: ins.opcode[1], // should be 0
+    useImm: _getUseImm(ins), // should be 0
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -231,7 +235,7 @@ function decodeIIns(ins) {
     rs1: ins.rs1,
     rs2: ins.rs2,
     imm: ins.imm20_31,
-    useImm: ins.opcode[1], // should be 1
+    useImm: _getUseImm(ins), // should be 1
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -244,7 +248,7 @@ function decodeSIns(ins) {
     rs1: ins.rs1,
     rs2: ins.rs2,
     imm: ins.imm25_31__7_11,
-    useImm: ins.opcode[1],
+    useImm: _getUseImm(ins),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -257,7 +261,7 @@ function decodeBIns(ins) {
     rs1: ins.rs1,
     rs2: ins.rs2,
     imm: ins.imm25_31__7_11 * 2,
-    useImm: ins.opcode[1],
+    useImm: _getUseImm(ins),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -270,7 +274,7 @@ function decodeUIns(ins) {
     rs1: ins.rs1,
     rs2: ins.rs2,
     imm: ins.imm12_31 * 2 ** 12,
-    useImm: ins.opcode[1],
+    useImm: _getUseImm(ins),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -283,7 +287,7 @@ function decodeJIns(ins) {
     rs1: ins.rs1,
     rs2: ins.rs2,
     imm: ins.imm12_31 * 2,
-    useImm: ins.opcode[1],
+    useImm: _getUseImm(ins),
     insOpcode: 0,
     funcOpcode: 0,
     eqOpcode: 0,
@@ -311,12 +315,40 @@ function decodeIns(ins) {
 function _propsToBin(insData) {
   const newObj = {};
   for (const key in insData) {
-    newObj[key] == Number(insData).toString(2);
+    newObj[key] = Number(insData[key]).toString(2);
   }
   return newObj;
 }
 
-// function encodeIns(insType, insData) {}
+function encodeOperateIns(insDataBin) {
+  // console.log(insDataBin);
+  if (Number(insDataBin.useImm) == 0) {
+    return (
+      "0".repeat(7) +
+      insDataBin.rs2.padStart(5, "0") +
+      insDataBin.rs1.padStart(5, "0") +
+      "0".repeat(3) +
+      insDataBin.rd.padStart(5, "0") +
+      "0110011"
+    );
+  } else {
+    return (
+      insDataBin.imm.padStart(12, "0") +
+      insDataBin.rs1.padStart(5, "0") +
+      "0".repeat(3) +
+      insDataBin.rd.padStart(5, "0") +
+      "0110011"
+    );
+  }
+}
+
+// TODO: check var size, abstract
+function encodeIns(insType, insData) {
+  const insDataBin = _propsToBin(insData);
+  if (insType == "operate") {
+    return encodeOperateIns(insDataBin, insData);
+  }
+}
 
 module.exports = {
   Operator,
@@ -324,4 +356,7 @@ module.exports = {
   Jumper,
   Brancher,
   ALU,
+
+  decodeIns,
+  encodeIns,
 };
