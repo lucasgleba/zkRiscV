@@ -381,22 +381,33 @@ function propsTo32Bits(insData) {
   return newObj;
 }
 
-function encodeOperateIns(insDataBin) {
-  // console.log(insDataBin);
+const _operator = new Operator();
+
+function encodeOperateIns(insDataBin, insData) {
+  const opName = insData.operation;
+  const opCode = _operator.opcodes[opName];
+  const f3bin = (opCode - (opCode > 7 ? 8 : 0)).toString(2);
+  const f7bin = opCode > 7 ? "0100000" : "0000000";
   if (Number(insDataBin.useImm) == 0) {
     return (
-      "0".repeat(7) +
+      fitToBitsBin(f7bin, 7) +
       fitToBitsBin(insDataBin.rs2, 5) +
       fitToBitsBin(insDataBin.rs1, 5) +
-      "0".repeat(3) +
+      fitToBitsBin(f3bin, 3) +
       fitToBitsBin(insDataBin.rd, 5) +
       "0110011"
     );
   } else {
+    let imm;
+    if (opName == "sra") {
+      imm = fitToBitsBin(f7bin, 7) + fitToBitsBin(insDataBin.imm, 5);
+    } else {
+      imm = fitToBitsBin(insDataBin.imm, 12);
+    }
     return (
-      fitToBitsBin(insDataBin.imm, 12) +
+      imm +
       fitToBitsBin(insDataBin.rs1, 5) +
-      "0".repeat(3) +
+      fitToBitsBin(f3bin, 3) +
       fitToBitsBin(insDataBin.rd, 5) +
       "0010011"
     );
