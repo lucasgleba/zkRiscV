@@ -5,6 +5,14 @@ pragma circom 2.0.2;
 // TODO: optimize
 // TODO: size-limit pc, out [?]
 // TODO: computator instead of operator [?]
+// TODO: add constrains for input size [?]
+// TODO: break things into smaller components
+// TODO: cost of mux?
+// TODO: use constants instead of hard-coding
+// TODO: more consistent naming
+// TODO: brute force efficient circuits [?]
+// TODO: order the SPAGET
+// TODO: binequals template
 
 include "./gates.circom";
 
@@ -61,24 +69,30 @@ template Operator(bits) {
 
     for (var ii = 0; ii < bits; ii++) {
         mux.c[ii][0] <== add.out[ii];
-        mux.c[ii][1] <== sub.out[ii];
-        mux.c[ii][2] <== xor.out[ii];
-        mux.c[ii][3] <== or.out[ii];
-        mux.c[ii][4] <== and.out[ii];
-        mux.c[ii][5] <== sll.out[ii];
-        mux.c[ii][6] <== srl.out[ii];
-        mux.c[ii][7] <== sra.out[ii];
+        mux.c[ii][8] <== sub.out[ii];
+        mux.c[ii][4] <== xor.out[ii];
+        mux.c[ii][6] <== or.out[ii];
+        mux.c[ii][7] <== and.out[ii];
+        mux.c[ii][1] <== sll.out[ii];
+        mux.c[ii][5] <== srl.out[ii];
+        mux.c[ii][12] <== sra.out[ii];
     }
 
-    mux.c[0][8] <== sub.out[bits - 1];
-    mux.c[0][9] <== sub.out[bits];
+    mux.c[0][2] <== sub.out[bits - 1];
+    mux.c[0][3] <== sub.out[bits];
 
     for (var ii = 1; ii < bits; ii++) {
-        mux.c[ii][8] <== 0;
-        mux.c[ii][9] <== 0;
+        mux.c[ii][2] <== 0;
+        mux.c[ii][3] <== 0;
     }
 
-    for (var ii = 10; ii < 16; ii++) {
+    for (var ii = 9; ii < 12; ii++) {
+        for (var jj = 0; jj < bits; jj++) {
+            mux.c[jj][ii] <== 0;
+        }
+    }
+    
+    for (var ii = 13; ii < 16; ii++) {
         for (var jj = 0; jj < bits; jj++) {
             mux.c[jj][ii] <== 0;
         }
@@ -108,7 +122,7 @@ template ImmLoader(bits) {
     signal output out;
     signal output pcOut;
     pcOut <== pc + 4;
-    out <== imm + pc * opcode;
+    out <== imm + pc * (1 - opcode);
 }
 
 template Jumper(bits) {
@@ -120,8 +134,8 @@ template Jumper(bits) {
     signal output pcOut;
     out <== pc + 4;
     component mux = Mux1();
-    mux.c[0] <== pc + imm; // jal
-    mux.c[1] <== rs1 + imm; // jalr
+    mux.c[0] <== rs1 + imm; // jalr
+    mux.c[1] <== pc + imm; // jal
     mux.s <== opcode;
     pcOut <== mux.out;
 }
@@ -130,7 +144,7 @@ template Brancher(bits) {
     signal input cmp;
     signal input imm;
     signal input pc;
-    signal input eq;
+    signal input neq;
     signal output out;
     signal output pcOut;
     out <== 0;
@@ -139,7 +153,10 @@ template Brancher(bits) {
     mux.c[1] <== pc + imm; // [?]
     component zr = IsZero();
     zr.in <== cmp;
-    mux.s <== zr.out * eq;
+    component xor = XOR();
+    xor.a <== zr.out;
+    xor.b <== neq;
+    mux.s <== xor.out;
     pcOut <== mux.out;
 }
 
@@ -151,7 +168,7 @@ template ALU(bits) {
     signal input pc;
     signal input insOpcode;
     signal input funcOpcode;
-    signal input eqOpcode;
+    signal input neqOpcode;
     signal output out;
     signal output pcOut;
 
@@ -181,7 +198,7 @@ template ALU(bits) {
     brancher.cmp <== operator.out;
     brancher.imm <== imm;
     brancher.pc <== pc;
-    brancher.eq <== eqOpcode;
+    brancher.neq <== neqOpcode;
 
     component insOpcodeBits = Num2Bits(2);
     insOpcodeBits.in <== insOpcode;
@@ -269,13 +286,18 @@ template InsDecoder() {
     signal output rs2; // ok
     signal output imm; // ok
     signal output useImm; // ok
-    signal output insOpcode;
+    // TODO: rename these
+    signal output insOpcode; // almost ok
     signal output funcOpcode;
-    signal output eqOpcode;
+    signal output neqOpcode; // ok
+    signal output rOpcode; // ok
+    signal output storeOpcode; // ok
 
+    // ins to bin
     component insBin = Num2Bits(32);
     insBin.in <== ins;
 
+    // get ins type
     component r_sMux = MultiMux1(2);
     component rs_iMux = MultiMux1(2);
     component u_rsiMux = MultiMux1(2);
@@ -338,10 +360,16 @@ template InsDecoder() {
         rdNum.in[ii] <== insBin.out[7 + ii];
     }
 
+    // set easy outputs
     rs1 <== rs1Num.out;
     rs2 <== rs2Num.out;
     rd <== rdNum.out * (1 - insTypeBin.out[1]);
     useImm <== 1 - insBin.out[5];
+    neqOpcode <== insBin.out[12];
+    rOpcode <== insBin.out[4] + insBin.out[6];
+    storeOpcode <== insBin.out[5];
+
+    // set imm
 
     component immINum = Bits2Num(12);
     component immSBNum = Bits2Num(12);
@@ -389,10 +417,122 @@ template InsDecoder() {
     imm <== s1_12rImmMux.out;
     // imm <== rawImm;
 
-    insOpcode <== 0;
-    funcOpcode <== 0;
-    eqOpcode <== 0;
+    // set insOpcode
+
+    /*
+    1   0
+    01100 0
+    00100 0
+    11000 3
+    11011 2
+    11001 2
+    01101 1
+    00101 1
+    =====
+    [2] +  2*[1] + [0]*[2] + [0]*[1]
+    000 0
+    001 0
+    011 3
+    100 1
+    101 2
+    =====
+
+    000 0 0
+    001 0->0/1-> 2
+    011 1 3
+    100 0 1
+    101 1 2
+    
+    s * 2 + [1] + [2] * (1 - [0]) TODO: try to simplify
+    000 0 0 ok
+    001 0 0 ok
+    001 1 2 ok
+    011 1 3 ok
+    100 0 1 ok
+    101 1 2 ok
+    */
+
+    // insOpcode <== insBin.out[6] * 2 + insTypeBin.out[1] + insTypeBin.out[2] * (1 - insTypeBin.out[0]);
+    insOpcode <== insBin.out[6] * 2 + insTypeBin.out[1] + insTypeBin.out[2] * (1 - insTypeBin.out[0]);
+    
+    // set funcOpcode
+
+    component f3Num = Bits2Num(3);
+    for (var ii = 0; ii < 3; ii++) {
+        f3Num.in[ii] <== insBin.out[12 + ii];
+    }
+
+    component insOpBin = Num2Bits(2);
+    insOpBin.in <== insOpcode;
+    
+    component riIncMux = Mux1();
+
+    component quickAnd = AND();
+    quickAnd.a <== insBin.out[12 + 2];
+    quickAnd.b <== 1 - insBin.out[12 + 1];
+
+    riIncMux.c[0] <== 1;
+    riIncMux.c[1] <== quickAnd.out * insBin.out[12 + 0];
+    riIncMux.s <== insTypeBin.out[0];
+
+    component funcMux = Mux2();
+    funcMux.c[0] <== f3Num.out + 8 * insBin.out[30] * riIncMux.out;
+    funcMux.c[1] <== insBin.out[5];
+    funcMux.c[2] <== insBin.out[3];
+    funcMux.c[3] <== 8 - 6 * insBin.out[25 + 2] + insBin.out[25 + 1];
+    funcMux.s[0] <== insOpBin.out[0];
+    funcMux.s[1] <== insOpBin.out[1];
+    funcOpcode <== funcMux.out;
 
 }
 
 // component main = InsDecoder();
+
+/*
+000 0
+001 1
+100 0
+101 1
+110 0
+111 1
+
+0 f3 + f7[5] * 8
+1 opcode[5]
+2 opcode[3]
+3
+
+add 0x0
+sub 0x0 + 0x8
+xor 0x4
+or 0x6
+and 0x7
+sll 0x1
+srl 0x5
+sra 0x5 + 0x8
+slt 0x2
+sltu 0x3
+
+8 - 6 * [2] + [1]
+
+0000 sub 0x8
+0001 sub 0x8
+0100 slt 0x2
+0101 slt 0x2
+0110 sltu 0x3
+0111 sltu 0x3
+
+0x20 = 00100000
+0x5 = 101
+
+000
+001
+010
+011
+100
+101
+110
+111
+
+[2] * (1 - [1]) * [0]
+
+*/

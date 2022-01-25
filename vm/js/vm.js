@@ -2,6 +2,8 @@
  * Scaffold emulator, follows circuit structure
  */
 
+// TODO: func vs funct
+
 function assertSize(value, maxSize) {
   if (value >= 2 ** maxSize) {
     throw "value too big";
@@ -65,7 +67,6 @@ function opDicts(ops, opNamesByCode) {
 }
 
 function Operator() {
-  self = this;
   this._rawOps = {
     add: (aa, bb) => aa + bb,
     sub: (aa, bb) => aa - bb,
@@ -90,15 +91,15 @@ function Operator() {
   }
   this.opNamesByCode = {
     0: "add",
-    1: "sub",
-    2: "xor",
-    3: "or",
-    4: "and",
-    5: "sll",
-    6: "srl",
-    7: "sra",
-    8: "slt",
-    9: "sltu",
+    8: "sub",
+    4: "xor",
+    6: "or",
+    7: "and",
+    1: "sll",
+    5: "srl",
+    12: "sra",
+    2: "slt",
+    3: "sltu",
   };
   [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
   // aa, bb are two's complement 32 bit
@@ -118,8 +119,8 @@ function ImmLoader() {
     auipc: (imm, pc) => pc + imm, // (imm << 12),
   };
   this.opNamesByCode = {
-    0: "lui",
-    1: "auipc",
+    1: "lui",
+    0: "auipc",
   };
   [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
   this.execute = function (opcode, imm, pc) {
@@ -139,8 +140,8 @@ function Jumper() {
     jalr: (rs1, imm, pc) => [pc + 4, rs1 + imm],
   };
   this.opNamesByCode = {
-    0: "jal",
-    1: "jalr",
+    1: "jal",
+    0: "jalr",
   };
   [this.opsByCode, this.opcodes] = opDicts(this.ops, this.opNamesByCode);
   this.execute = function (opcode, rs1, imm, pc) {
@@ -154,8 +155,8 @@ function Jumper() {
 }
 
 function Brancher() {
-  this._branch = function (cmp, imm, pc, eq) {
-    return cmp == 0 && eq ? pc + imm : pc + 4;
+  this._branch = function (cmp, imm, pc, neq) {
+    return (cmp == 0) ^ neq ? pc + imm : pc + 4;
   };
   this._operator = new Operator();
   this._preops = {
@@ -218,7 +219,7 @@ function ALU() {
     pc,
     iOpcode,
     fOpcode,
-    eqOpcode
+    neqOpcode
   ) {
     let pcOut = pc + 4;
     let out;
@@ -231,7 +232,7 @@ function ALU() {
       [out, pcOut] = this.jumper.execute(fOpcode, rs1, imm, pc);
     } else if (iOpcode == 3) {
       const cmp = this.operator.execute(fOpcode, rs1, rs2);
-      pcOut = this.brancher._branch(cmp, imm, pc, eqOpcode);
+      pcOut = this.brancher._branch(cmp, imm, pc, neqOpcode);
       out = 0;
     } else {
       throw "iOpcode not valid";
@@ -244,9 +245,11 @@ function ALU() {
 function parseIns(ins) {
   const opcode = ins.slice(25, 32);
   const funct7 = parseInt(ins.slice(0, 7), 2);
+  // const funct7Hex = funct7.toString(16).toLowerCase();
   const rs2 = parseInt(ins.slice(7, 12), 2);
   const rs1 = parseInt(ins.slice(12, 17), 2);
   const funct3 = parseInt(ins.slice(17, 20), 2);
+  // const funct3Hex = funct3.toString(16).toLowerCase();
   const rd = parseInt(ins.slice(20, 25), 2);
   const imm20_31 = parseInt(ins.slice(0, 12), 2);
   const imm25_31__7_11 = parseInt(ins.slice(0, 7) + ins.slice(20, 25), 2);
@@ -254,78 +257,100 @@ function parseIns(ins) {
   return {
     opcode,
     funct7,
+    // funct7Hex,
     rs2,
     rs1,
     funct3,
+    // funct3Hex,
     rd,
     imm20_31,
     imm25_31__7_11,
     imm12_31,
-    base: {
-      rd,
-      rs1,
-      rs2,
-      useImm: opcode[1] == "1" ? 0 : 1,
-    },
+    // base: {
+    // rd,
+    // rs1,
+    // rs2,
+    // useImm: opcode[1] == "1" ? 0 : 1,
+    // neqOpcode: ins[32 - 12],
+    // rOpcode: ins[32 - 4] + ins[32 - 6],
+    // storeOpcode: ins[32 - 5],
+    // },
   };
 }
 
 function decodeRIns(ins) {
   return {
-    ...ins.base,
+    // ...ins.base,
+    rd: ins.rd,
+    rs1: ins.rs1,
+    rs2: ins.rs2,
     imm: ins.imm20_31,
+    useImm: 0,
+    rOpcode: 1,
     insOpcode: 0,
-    funcOpcode: 0,
-    eqOpcode: 0,
+    funcOpcode: ins.funct3 + ins.funct7 == 0 ? 0 : 8,
   };
 }
 function decodeIIns(ins) {
-  return {
-    ...ins.base,
-    imm: signExtend(ins.imm20_31, 12, 32),
-    insOpcode: 0,
-    funcOpcode: 0,
-    eqOpcode: 0,
-  };
+  const decR = decodeRIns(ins);
+  decR.funcOpcode = ins.funct3 + (ins.funct3 == 5 && ins.funct7 != 0) ? 8 : 0;
+  decR.useImm = 1;
+  decR.imm = signExtend(ins.imm20_31, 12, 32);
+  return decR;
 }
 
 function decodeSIns(ins) {
   return {
-    ...ins.base,
+    rs1: ins.rs1,
+    rs2: ins.rs2,
     imm: signExtend(ins.imm25_31__7_11, 12, 32),
-    insOpcode: 0,
-    funcOpcode: 0,
-    eqOpcode: 0,
+    rOpcode: 0,
+    storeOpcode: 1,
   };
 }
 
 function decodeBIns(ins) {
-  return {
-    ...ins.base,
+  const obj = {
+    rs1: ins.rs1,
+    rs2: ins.rs2,
     imm: signExtend(ins.imm25_31__7_11 * 2, 13, 32),
-    insOpcode: 0,
-    funcOpcode: 0,
-    eqOpcode: 0,
+    rOpcode: 1,
+    insOpcode: 3,
   };
+  [obj.funcOpcode, obj.neqOpcode] = {
+    0: [8, 0],
+    1: [8, 1],
+    4: [2, 0],
+    5: [2, 1],
+    6: [3, 0],
+    7: [3, 1],
+  }[ins.funct3];
 }
 
 function decodeUIns(ins) {
   return {
-    ...ins.base,
+    rd: ins.rd,
     imm: ins.imm12_31 * 2 ** 12,
-    insOpcode: 0,
-    funcOpcode: 0,
-    eqOpcode: 0,
+    rOpcode: 1,
+    insOpcode: 1,
+    funcOpcode: {
+      ".0110111": 1,
+      ".0010111": 0,
+    }["." + ins.opcode],
   };
 }
 
 function decodeJIns(ins) {
   return {
-    ...ins.base,
+    rd: ins.rd,
+    rs1: ins.rs1,
     imm: signExtend(ins.imm12_31 * 2, 21, 32),
-    insOpcode: 0,
-    funcOpcode: 0,
-    eqOpcode: 0,
+    rOpcode: 1,
+    insOpcode: 2,
+    funcOpcode: {
+      ".1101111": 1,
+      ".1100111": 0,
+    }["." + ins.opcode],
   };
 }
 
@@ -335,16 +360,16 @@ function decodeIns(ins) {
   }
   opcode = ins.slice(32 - 7, 32);
   return {
-    ".01100": decodeRIns,
-    ".00100": decodeIIns,
-    ".00000": decodeIIns,
-    ".01000": decodeSIns,
-    ".11000": decodeBIns,
-    ".11011": decodeJIns,
-    ".11001": decodeIIns,
-    ".01101": decodeUIns,
-    ".00101": decodeUIns,
-  }["." + opcode.slice(0, 5)](parseIns(ins));
+    ".0110011": decodeRIns,
+    ".0010011": decodeIIns,
+    ".0000011": decodeIIns,
+    ".0100011": decodeSIns,
+    ".1100011": decodeBIns,
+    ".1101111": decodeJIns,
+    ".1100111": decodeIIns,
+    ".0110111": decodeUIns,
+    ".0010111": decodeUIns,
+  }["." + opcode](parseIns(ins));
 }
 
 function propsTo32Bits(insData) {

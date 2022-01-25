@@ -81,9 +81,9 @@ async function testBrancher(circuit, opName, testSet) {
           ];
           const pcOut = brancher.execute(opcode, rs1, rs2, imm, pc);
           const cmp = brancher._preops[opName](rs1, rs2);
-          const eq = opcode % 2 == 0 ? 1 : 0;
+          const neq = opcode % 2 == 0 ? 1 : 0;
           const w = await circuit.calculateWitness(
-            { cmp: cmp, imm: imm, pc: pc, eq: eq },
+            { cmp: cmp, imm: imm, pc: pc, neq: neq },
             true
           );
           await circuit.assertOut(w, { pcOut: pcOut });
@@ -98,10 +98,10 @@ async function testALU(circuit, insType) {
   const ins = alu.insTypesByName[insType];
   for (let rs1Idx = 0; rs1Idx < [3, 1, 3, 3][ins]; rs1Idx++) {
     for (let rs2Idx = 0; rs2Idx < [3, 1, 1, 3][ins]; rs2Idx++) {
-      for (let func = 0; func < [10, 2, 2, 6][ins]; func++) {
+      for (let _func = 0; _func < [10, 2, 2, 6][ins]; _func++) {
         for (
           let immIdx = 0;
-          immIdx < (ins == 0 && func >= 5 && func <= 7 ? 2 : 3);
+          immIdx < (ins == 0 && _func >= 5 && _func <= 7 ? 2 : 3);
           immIdx++
         ) {
           for (let pcIdx = 0; pcIdx < 3; pcIdx++) {
@@ -112,7 +112,8 @@ async function testALU(circuit, insType) {
               testSet[pcIdx],
             ];
             for (let useImm = 0; useImm < (ins == 0 ? 2 : 1); useImm++) {
-              for (let eq = 0; eq < (ins == 3 ? 2 : 1); eq++) {
+              for (let neq = 0; neq < (ins == 3 ? 2 : 1); neq++) {
+                const func = _func == 9 ? 12 : _func;
                 const [out, pcOut] = alu.execute(
                   rs1,
                   rs2,
@@ -121,7 +122,7 @@ async function testALU(circuit, insType) {
                   pc,
                   ins,
                   func,
-                  eq
+                  neq
                 );
                 const w = await circuit.calculateWitness(
                   {
@@ -132,7 +133,7 @@ async function testALU(circuit, insType) {
                     pc: pc,
                     insOpcode: ins,
                     funcOpcode: func,
-                    eqOpcode: eq,
+                    neqOpcode: neq,
                   },
                   true
                 );

@@ -3,23 +3,40 @@ const { decodeIns, encodeIns } = require("../../vm/js/vm");
 
 const registerTestSet = [0, 1, 31];
 
+async function debugTest(circuit, w, ins) {
+  await circuit.loadSymbols();
+  console.log("circom, js");
+  const decodedIns = decodeIns(ins);
+  [
+    "rd",
+    "rs1",
+    "rs2",
+    "imm",
+    "useImm",
+    "insOpcode",
+    "funcOpcode",
+    "neqOpcode",
+    "rOpcode",
+    "storeOpcode",
+    // "insBin.out[30]",
+    // "riIncMux.out",
+    // "f3Num.out",
+  ].forEach(function (signal) {
+    console.log(
+      signal,
+      w[circuit.symbols["main." + signal].varIdx].toString(),
+      decodedIns[signal]
+    );
+  });
+  console.log(ins);
+  console.log("=====");
+}
+
 async function testInsDecoder(circuit, insBin) {
   const w = await circuit.calculateWitness({
     ins: parseInt(insBin, 2),
   });
-  await circuit.loadSymbols();
-  // console.log("=====");
-  // console.log("rd", w[circuit.symbols["main.rd"].varIdx].toString());
-  // console.log("rs1", w[circuit.symbols["main.rs1"].varIdx].toString());
-  // console.log("rs2", w[circuit.symbols["main.rs2"].varIdx].toString());
-  // console.log("imm", w[circuit.symbols["main.imm"].varIdx].toString());
-  // console.log("useImm", w[circuit.symbols["main.useImm"].varIdx].toString());
-  // console.log("j_ibursiMux.out[1]", w[circuit.symbols["main.j_ibursiMux.out[1]"].varIdx].toString());
-  // console.log("rawImm", w[circuit.symbols["main.rawImm"].varIdx].toString());
-  // console.log("insTypeBin.out[2]", w[circuit.symbols["main.insTypeBin.out[2]"].varIdx].toString());
-  // console.log("immOr.out", w[circuit.symbols["main.immOr.out"].varIdx].toString());
-  // console.log(insBin);
-  // console.log(decodeIns(insBin));
+  // await debugTest(circuit, w, insBin);
   await circuit.assertOut(w, decodeIns(insBin));
 }
 
@@ -28,7 +45,7 @@ describe("decoder", function () {
   before(async () => {
     circuit = await getWasmTester("decoder.test.circom");
   });
-  describe("operate", function() {
+  describe("operate", function () {
     it("r", async function () {
       for (let ii = 0; ii < registerTestSet.length; ii++) {
         for (let jj = 0; jj < registerTestSet.length; jj++) {
