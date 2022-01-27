@@ -35,85 +35,96 @@ template MultiMux5(n) {
     }
 }
 
-template LeftShifter(bits) {
-    signal input in[bits];
-    signal input k;
-    signal output out[bits];
-    out[0] <== k;
-    for (var ii = 1; ii < bits; ii++) {
-        out[ii] <== in[ii - 1];
-    }
+template Mux5() {
+    signal input c[32];
+    signal input s[5];
+    signal output out;
+    component mux = MultiMux5(1);
+    for (var ii = 0; ii < 32; ii++) mux.c[0][ii] <== c[ii];
+    for (var ii = 0; ii < 5; ii++) mux.s[ii] <== s[ii];
+    out <== mux.out[0];
 }
 
-template RightShifter(bits) {
-    signal input in[bits];
-    signal input k;
-    signal output out[bits];
-    out[bits - 1] <== k;
-    for (var ii = 0; ii < bits - 1; ii++) {
-        out[ii] <== in[ii + 1];
-    }
-}
+// template LeftShift(n) {
+//     signal input in[n];
+//     signal input k;
+//     signal output out[n];
+//     out[0] <== k;
+//     for (var ii = 1; ii < n; ii++) {
+//         out[ii] <== in[ii - 1];
+//     }
+// }
 
-template RightShifter32(bits) {
-    assert(bits == 32);
-    signal input in[2][bits];
-    signal input k;
-    signal output out[bits];
-    component mux = MultiMux5(bits);
-    for (var ii = 0; ii < bits; ii++) {
-        mux.c[ii][0] <== in[0][ii];
-    }
-    component shifters[bits - 1];
-    for (var ii = 0; ii < bits - 1; ii++) {
-        shifters[ii] = RightShifter(bits);
-    }
-    for (var ii = 0; ii < bits - 1; ii++) {
-        shifters[ii].k <== k;
-        for (var jj = 0; jj < bits; jj++) {
-            shifters[ii].in[jj] <== mux.c[jj][ii];
-        }
-        for (var jj = 0; jj < bits; jj++) {
-            mux.c[jj][ii + 1] <== shifters[ii].out[jj];
-        }
-    }
-    for (var ii = 0; ii < 5; ii++) {
-        mux.s[ii] <== in[1][ii];
-    }
-    for (var ii = 0; ii < bits; ii++) {
-        out[ii] <== mux.out[ii];
-    }
-}
+// template RightShift(n) {
+//     signal input in[n];
+//     signal input k;
+//     signal output out[n];
+//     out[n - 1] <== k;
+//     for (var ii = 0; ii < n - 1; ii++) {
+//         out[ii] <== in[ii + 1];
+//     }
+// }
 
-template LeftShifter32(bits) {
-    assert(bits == 32);
-    signal input in[2][bits];
-    signal input k;
-    signal output out[bits];
-    component mux = MultiMux5(bits);
-    for (var ii = 0; ii < bits; ii++) {
-        mux.c[ii][0] <== in[0][ii];
-    }
-    component shifters[bits - 1];
-    for (var ii = 0; ii < bits - 1; ii++) {
-        shifters[ii] = LeftShifter(bits);
-    }
-    for (var ii = 0; ii < bits - 1; ii++) {
-        shifters[ii].k <== k;
-        for (var jj = 0; jj < bits; jj++) {
-            shifters[ii].in[jj] <== mux.c[jj][ii];
-        }
-        for (var jj = 0; jj < bits; jj++) {
-            mux.c[jj][ii + 1] <== shifters[ii].out[jj];
-        }
-    }
-    for (var ii = 0; ii < 5; ii++) {
-        mux.s[ii] <== in[1][ii];
-    }
-    for (var ii = 0; ii < bits; ii++) {
-        out[ii] <== mux.out[ii];
-    }
-}
+// // TODO: better shifter by muxing Shift(n) [?]
+// template RightShift32() {
+//     var n = 32;
+//     signal input in[2][n];
+//     signal input k;
+//     signal output out[n];
+//     component mux = MultiMux5(n);
+//     for (var ii = 0; ii < n; ii++) {
+//         mux.c[ii][0] <== in[0][ii];
+//     }
+//     component shifters[n - 1];
+//     for (var ii = 0; ii < n - 1; ii++) {
+//         shifters[ii] = RightShift(n);
+//     }
+//     for (var ii = 0; ii < n - 1; ii++) {
+//         shifters[ii].k <== k;
+//         for (var jj = 0; jj < n; jj++) {
+//             shifters[ii].in[jj] <== mux.c[jj][ii];
+//         }
+//         for (var jj = 0; jj < n; jj++) {
+//             mux.c[jj][ii + 1] <== shifters[ii].out[jj];
+//         }
+//     }
+//     for (var ii = 0; ii < 5; ii++) {
+//         mux.s[ii] <== in[1][ii];
+//     }
+//     for (var ii = 0; ii < n; ii++) {
+//         out[ii] <== mux.out[ii];
+//     }
+// }
+
+// template LeftShift32() {
+//     var n == 32;
+//     signal input in[2][n];
+//     signal input k;
+//     signal output out[n];
+//     component mux = MultiMux5(n);
+//     for (var ii = 0; ii < n; ii++) {
+//         mux.c[ii][0] <== in[0][ii];
+//     }
+//     component shifters[n - 1];
+//     for (var ii = 0; ii < n - 1; ii++) {
+//         shifters[ii] = LeftShift(n);
+//     }
+//     for (var ii = 0; ii < n - 1; ii++) {
+//         shifters[ii].k <== k;
+//         for (var jj = 0; jj < n; jj++) {
+//             shifters[ii].in[jj] <== mux.c[jj][ii];
+//         }
+//         for (var jj = 0; jj < n; jj++) {
+//             mux.c[jj][ii + 1] <== shifters[ii].out[jj];
+//         }
+//     }
+//     for (var ii = 0; ii < 5; ii++) {
+//         mux.s[ii] <== in[1][ii];
+//     }
+//     for (var ii = 0; ii < n; ii++) {
+//         out[ii] <== mux.out[ii];
+//     }
+// }
 
 template BitwiseXOR(bits) {
     signal input in[2][bits];

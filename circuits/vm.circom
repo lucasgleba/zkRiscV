@@ -536,3 +536,7 @@ sltu 0x3
 [2] * (1 - [1]) * [0]
 
 */
+
+template Computer() {
+    
+}
