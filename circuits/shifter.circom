@@ -1,6 +1,7 @@
 pragma circom 2.0.2;
 
 include "./gates.circom";
+include "./utils.circom";
 include "../node_modules/circomlib/circuits/comparators.circom";
 
 template LeftBinShift(n, shift) {
@@ -68,10 +69,6 @@ template LeftShift(shift) {
     signal input in;
     signal output out;
     out <== in * 2 ** shift;
-}
-
-function signExtension (dataLength, wordLength) {
-    return (2 ** (wordLength - dataLength) - 1) * 2 ** dataLength;
 }
 
 template RightShift(n, shift) {

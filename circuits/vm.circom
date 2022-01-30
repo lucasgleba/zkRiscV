@@ -15,6 +15,7 @@ pragma circom 2.0.2;
 // TODO: binequals template
 
 include "./gates.circom";
+include "../node_modules/circomlib/circuits/mux1.circom";
 
 template Operator(bits) {
     signal input a;
