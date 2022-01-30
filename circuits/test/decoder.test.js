@@ -1,7 +1,7 @@
 const { getWasmTester, objToBinInput } = require("./utils");
 const { decodeRV32I } = require("../../vm/js/decoder");
 
-const opcodes = [
+const opcodes_6_2 = [
   "01100",
   "00100",
   "00000",
@@ -13,15 +13,15 @@ const opcodes = [
   "00101",
 ];
 
-const fiveBitTestValues = ["00000", "10000"];
+const fiveBitTestValues = ["00000", "00001", "10000", "10001"];
 
 describe("RV32I_Decoder", function () {
   let circuit;
   before(async function () {
     circuit = await getWasmTester("decoder.test.circom");
   });
-  for (let ii = 0; ii < opcodes.length; ii++) {
-    const opcode = opcodes[ii];
+  for (let ii = 0; ii < opcodes_6_2.length; ii++) {
+    const opcode = opcodes_6_2[ii];
     it(opcode, async function () {
       for (let b0_idx = 0; b0_idx < fiveBitTestValues.length; b0_idx++) {
         for (let b1_idx = 0; b1_idx < fiveBitTestValues.length; b1_idx++) {

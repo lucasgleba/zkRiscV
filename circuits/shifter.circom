@@ -89,8 +89,8 @@ template RightShift(n, shift) {
 
 template Shift(n, shift, right) {
     signal input in;
-    signal output out;
     signal input k;
+    signal output out;
     component rightShifter = RightShift(n, shift);
     component leftShifter = LeftShift(shift);
     if (right == 1) {
