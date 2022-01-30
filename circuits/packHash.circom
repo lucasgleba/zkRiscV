@@ -44,4 +44,4 @@ template ValidPackHash(n, size) {
     packHash.out === hash;
 }
 
-// component main = PackHash(33, 32);
+// component main = PackHash(32, 32);

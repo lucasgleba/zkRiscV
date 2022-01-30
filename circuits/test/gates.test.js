@@ -1,14 +1,14 @@
 const { getWasmTester } = require("./utils");
 
 describe("gates", function () {
-  it("multiMux5", async function () {
-    const circuit = await getWasmTester("multiMux5.test.circom");
-    const cc = new Array(32).fill(null);
-    for (let ii = 0; ii < 32; ii++) {
+  it("multiMux6", async function () {
+    const circuit = await getWasmTester("multiMux6.test.circom");
+    const cc = new Array(64).fill(null);
+    for (let ii = 0; ii < 64; ii++) {
       cc[ii] = ii + 1;
     }
-    for (let ii = 0; ii < 32; ii++) {
-      const ss = ii.toString(2).padStart(5, "0").split("").reverse();
+    for (let ii = 0; ii < 64; ii++) {
+      const ss = ii.toString(2).padStart(6, "0").split("").reverse();
       const w = await circuit.calculateWitness({ c: cc, s: ss }, true);
       await circuit.assertOut(w, { "out[0]": ii + 1 });
     }

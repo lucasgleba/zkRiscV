@@ -1,7 +1,7 @@
 const { buildMimcSponge } = require("circomlibjs");
 const { getWasmTester } = require("./utils");
 
-const N = 33;
+const N = 32;
 const size = 32;
 
 function packHash(data, hashFunc) {
