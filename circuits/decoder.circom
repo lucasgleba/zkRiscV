@@ -122,11 +122,11 @@ template Imm_Parser() {
     for (var ii = 0; ii < 7; ii++) imm_31_25__11_7.in[ii + 5] <== instruction_bin[ii + 25];
     for (var ii = 0; ii < 20; ii++) imm_31_12.in[ii] <== instruction_bin[ii + 12];
 
-    i_dec <== imm_31_20.out + signExtension(12, 32) * instruction_bin[0];
-    s_dec <== imm_31_25__11_7.out + signExtension(12, 32) * instruction_bin[0];
-    b_dec <== imm_31_25__11_7.out * 2 + signExtension(13, 32) * instruction_bin[0];
+    i_dec <== imm_31_20.out + signExtension(12, 32) * instruction_bin[31];
+    s_dec <== imm_31_25__11_7.out + signExtension(12, 32) * instruction_bin[31];
+    b_dec <== imm_31_25__11_7.out * 2 + signExtension(13, 32) * instruction_bin[31];
     u_dec <== imm_31_12.out * 2 ** 12;
-    j_dec <== imm_31_12.out + signExtension(20, 32) * instruction_bin[0];
+    j_dec <== imm_31_12.out + signExtension(20, 32) * instruction_bin[31];
 
 }
 
@@ -172,20 +172,20 @@ template Type_and_Imm_Parser() {
     s_iMux.c[0][1] <== 4;
     s_iMux.c[1][1] <== imm.s_dec;
 
-    ri_siMux.c[0][0] <== r_iMux.out[0];
-    ri_siMux.c[1][0] <== r_iMux.out[1];
-    ri_siMux.c[0][1] <== s_iMux.out[0];
-    ri_siMux.c[1][1] <== s_iMux.out[1];
+    ri_siMux.c[0][0] <== s_iMux.out[0];
+    ri_siMux.c[1][0] <== s_iMux.out[1];
+    ri_siMux.c[0][1] <== r_iMux.out[0];
+    ri_siMux.c[1][1] <== r_iMux.out[1];
 
     u_risiMux.c[0][0] <== ri_siMux.out[0];
     u_risiMux.c[1][0] <== ri_siMux.out[1];
-    u_risiMux.c[0][1] <== 1;    
+    u_risiMux.c[0][1] <== 1;
     u_risiMux.c[1][1] <== imm.u_dec;
 
-    ib_urisiMux.c[0][0] <== i_bMux.out[0];
-    ib_urisiMux.c[1][0] <== i_bMux.out[1];
-    ib_urisiMux.c[0][1] <== u_risiMux.out[0];
-    ib_urisiMux.c[1][1] <== u_risiMux.out[1];
+    ib_urisiMux.c[0][0] <== u_risiMux.out[0];
+    ib_urisiMux.c[1][0] <== u_risiMux.out[1];
+    ib_urisiMux.c[0][1] <== i_bMux.out[0];
+    ib_urisiMux.c[1][1] <== i_bMux.out[1];
 
     j_iburisiMux.c[0][0] <== ib_urisiMux.out[0];
     j_iburisiMux.c[1][0] <== ib_urisiMux.out[1];
@@ -238,4 +238,4 @@ template RV32I_Decoder() {
 
 }
 
-component main = RV32I_Decoder();
+// component main = RV32I_Decoder();

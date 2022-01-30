@@ -10,6 +10,9 @@ describe("gates", function () {
     for (let ii = 0; ii < 32; ii++) {
       const ss = ii.toString(2).padStart(5, "0").split("").reverse();
       const w = await circuit.calculateWitness({ c: cc, s: ss }, true);
+      // await circuit.loadSymbols();
+      // console.log(ii, ss, ii + 1, w[circuit.symbols["main.out[0]"].varIdx].toString());
+      // console.log(w[circuit.symbols["main.s[4]"].varIdx].toString());
       await circuit.assertOut(w, { "out[0]": ii + 1 });
     }
   });

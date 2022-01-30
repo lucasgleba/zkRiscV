@@ -1,91 +1,61 @@
-const { getWasmTester } = require("./utils");
-const { decodeIns, encodeIns } = require("../../vm/js/vm");
+const { getWasmTester, objToBinInput } = require("./utils");
+const { decodeRV32I } = require("../../vm/js/decoder");
 
-const registerTestSet = [0, 1, 31];
+const opcodes = [
+  "01100",
+  "00100",
+  "00000",
+  "01000",
+  "11000",
+  "11011",
+  "11001",
+  "01101",
+  "00101",
+];
 
-async function debugTest(circuit, w, ins) {
-  await circuit.loadSymbols();
-  console.log("circom, js");
-  const decodedIns = decodeIns(ins);
-  [
-    "rd",
-    "rs1",
-    "rs2",
-    "imm",
-    "useImm",
-    "insOpcode",
-    "funcOpcode",
-    "neqOpcode",
-    "rOpcode",
-    "storeOpcode",
-    // "insBin.out[30]",
-    // "riIncMux.out",
-    // "f3Num.out",
-  ].forEach(function (signal) {
-    console.log(
-      signal,
-      w[circuit.symbols["main." + signal].varIdx].toString(),
-      decodedIns[signal]
-    );
-  });
-  console.log(ins);
-  console.log("=====");
-}
+const fiveBitTestValues = ["00000", "10000"];
 
-async function testInsDecoder(circuit, insBin) {
-  const w = await circuit.calculateWitness({
-    ins: parseInt(insBin, 2),
-  });
-  // await debugTest(circuit, w, insBin);
-  await circuit.assertOut(w, decodeIns(insBin));
-}
-
-describe("decoder", function () {
+describe("RV32I_Decoder", function () {
   let circuit;
-  before(async () => {
+  before(async function () {
     circuit = await getWasmTester("decoder.test.circom");
   });
-  describe("operate", function () {
-    it("r", async function () {
-      for (let ii = 0; ii < registerTestSet.length; ii++) {
-        for (let jj = 0; jj < registerTestSet.length; jj++) {
-          for (let kk = 0; kk < registerTestSet.length; kk++) {
-            const [rd, rs1, rs2] = [
-              registerTestSet[ii],
-              registerTestSet[jj],
-              registerTestSet[kk],
-            ];
-            const insBin = encodeIns("operate", {
-              rd: rd,
-              rs1: rs1,
-              rs2: rs2,
-              useImm: 0,
-            });
-            await testInsDecoder(circuit, insBin);
+  for (let ii = 0; ii < opcodes.length; ii++) {
+    const opcode = opcodes[ii];
+    it(opcode, async function () {
+      for (let b0_idx = 0; b0_idx < fiveBitTestValues.length; b0_idx++) {
+        for (let b1_idx = 0; b1_idx < fiveBitTestValues.length; b1_idx++) {
+          for (let b2_idx = 0; b2_idx < fiveBitTestValues.length; b2_idx++) {
+            for (let b3_idx = 0; b3_idx < fiveBitTestValues.length; b3_idx++) {
+              for (
+                let b4_idx = 0;
+                b4_idx < fiveBitTestValues.length;
+                b4_idx++
+              ) {
+                const [b0, b1, b2, b3, b4] = [
+                  fiveBitTestValues[b0_idx],
+                  fiveBitTestValues[b1_idx],
+                  fiveBitTestValues[b2_idx],
+                  fiveBitTestValues[b3_idx],
+                  fiveBitTestValues[b4_idx],
+                ];
+                const instruction_bin = [b0, b1, b2, b3, b4, opcode, "11"].join(
+                  ""
+                );
+                const input = { instruction_bin: instruction_bin };
+                const w = await circuit.calculateWitness(
+                  objToBinInput(input),
+                  true
+                );
+                const expected = decodeRV32I(instruction_bin);
+                delete expected.instructionType_bin;
+                delete expected.imm_dec;
+                await circuit.assertOut(w, objToBinInput(expected));
+              }
+            }
           }
         }
       }
     });
-    it("i", async function () {
-      const immTestSet = [0, 1, -1];
-      for (let ii = 0; ii < registerTestSet.length; ii++) {
-        for (let jj = 0; jj < registerTestSet.length; jj++) {
-          for (let kk = 0; kk < immTestSet.length; kk++) {
-            const [rd, rs1, imm] = [
-              registerTestSet[ii],
-              registerTestSet[jj],
-              immTestSet[kk],
-            ];
-            const insBin = encodeIns("operate", {
-              rd: rd,
-              rs1: rs1,
-              imm: imm,
-              useImm: 1,
-            });
-            await testInsDecoder(circuit, insBin);
-          }
-        }
-      }
-    });
-  });
+  }
 });

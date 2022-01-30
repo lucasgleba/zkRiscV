@@ -1,5 +1,6 @@
 pragma circom 2.0.2;
 
-include "../../vm.circom";
+include "../../decoder.circom";
 
-component main = InsDecoder();
+component main = RV32I_Decoder();
+
