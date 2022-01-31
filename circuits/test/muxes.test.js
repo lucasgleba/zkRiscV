@@ -15,9 +15,9 @@ describe("muxes", function () {
       await circuit.assertOut(w, { "out[0]": ii + 1 });
     }
   });
-  it("imux2", async function () {
-    const circuit = await getWasmTester("imux3.test.circom");
-    const sSize = 3;
+  it("imux6", async function () {
+    const circuit = await getWasmTester("imux6.test.circom");
+    const sSize = 6;
     const outSize = 2 ** sSize;
     const out = new Array(outSize).fill(0);
     for (let ii = 0; ii < outSize; ii++) {

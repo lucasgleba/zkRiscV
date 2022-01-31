@@ -122,7 +122,7 @@ template IMux2() {
 
 template IMux3() {
     var sSize = 3;
-    var outSize = 2 ** 3;
+    var outSize = 2 ** sSize;
     var halfOutSize = outSize / 2;
     signal input in;
     signal input s[sSize];
@@ -139,6 +139,75 @@ template IMux3() {
     for (var ii = 0; ii < 2; ii++) {
         for (var jj = 0; jj < halfOutSize; jj++) {
             out[ii * halfOutSize + jj] <== imux2[ii].out[jj];
+        }
+    }
+}
+
+template IMux4() {
+    var sSize = 4;
+    var outSize = 2 ** sSize;
+    var halfOutSize = outSize / 2;
+    signal input in;
+    signal input s[sSize];
+    signal output out[outSize];
+    component imux0 = IMux1();
+    imux0.in <== in;
+    imux0.s <== s[sSize - 1];
+    component imux3[2];
+    for (var ii = 0; ii < 2; ii++) {
+        imux3[ii] = IMux3();
+        imux3[ii].in <== imux0.out[ii];
+        for (var jj = 0; jj < sSize - 1; jj++) imux3[ii].s[jj] <== s[jj];
+    }
+    for (var ii = 0; ii < 2; ii++) {
+        for (var jj = 0; jj < halfOutSize; jj++) {
+            out[ii * halfOutSize + jj] <== imux3[ii].out[jj];
+        }
+    }
+}
+
+template IMux5() {
+    var sSize = 5;
+    var outSize = 2 ** sSize;
+    var halfOutSize = outSize / 2;
+    signal input in;
+    signal input s[sSize];
+    signal output out[outSize];
+    component imux0 = IMux1();
+    imux0.in <== in;
+    imux0.s <== s[sSize - 1];
+    component imux4[2];
+    for (var ii = 0; ii < 2; ii++) {
+        imux4[ii] = IMux4();
+        imux4[ii].in <== imux0.out[ii];
+        for (var jj = 0; jj < sSize - 1; jj++) imux4[ii].s[jj] <== s[jj];
+    }
+    for (var ii = 0; ii < 2; ii++) {
+        for (var jj = 0; jj < halfOutSize; jj++) {
+            out[ii * halfOutSize + jj] <== imux4[ii].out[jj];
+        }
+    }
+}
+
+template IMux6() {
+    var sSize = 6;
+    var outSize = 2 ** sSize;
+    var halfOutSize = outSize / 2;
+    signal input in;
+    signal input s[sSize];
+    signal output out[outSize];
+    component imux0 = IMux1();
+    imux0.in <== in;
+    imux0.s <== s[sSize - 1];
+    component imux5[2];
+    for (var ii = 0; ii < 2; ii++) {
+        imux5[ii] = IMux5();
+        imux5[ii].in <== imux0.out[ii];
+        for (var jj = 0; jj < sSize - 1; jj++) imux5[ii].s[jj] <== s[jj];
+    }
+    for (var ii = 0; ii < 2; ii++) {
+        for (var jj = 0; jj < halfOutSize; jj++) {
+            out[ii * halfOutSize + jj] <== imux5[ii].out[jj];
         }
     }
 }
