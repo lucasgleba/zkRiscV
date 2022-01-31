@@ -1,8 +1,8 @@
 pragma circom 2.0.2;
 
-include "./gates.circom";
+include "./muxes.circom";
 include "./utils.circom";
-include "../node_modules/circomlib/circuits/comparators.circom";
+include "../../node_modules/circomlib/circuits/comparators.circom";
 
 template LeftBinShift(n, shift) {
     assert(shift <= n);

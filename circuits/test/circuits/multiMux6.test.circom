@@ -1,5 +1,5 @@
 pragma circom 2.0.2;
 
-include "../../gates.circom";
+include "../../lib/muxes.circom";
 
 component main = MultiMux6(1);

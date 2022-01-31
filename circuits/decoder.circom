@@ -1,36 +1,12 @@
 pragma circom 2.0.2;
 
-include "./utils.circom";
-
+include "./lib/utils.circom";
+include "./constants.circom";
 include "../node_modules/circomlib/circuits/mux1.circom";
 include "../node_modules/circomlib/circuits/bitify.circom";
 
-function INSTRUCTION_SIZE() {
-    return 32;
-}
-
-function INSTR_TYPE_SIZE() {
-    return 3;
-}
-
-function OPCODE_6_2_SIZE() {
-    return 5;
-}
-
-function F3_SIZE() {
-    return 3;
-}
-
-function F7_SIZE() {
-    return 7;
-}
-
-function R_SIZE() {
-    return 5;
-}
-
 template Opcode_Parser() {
-    signal input instruction_bin[INSTRUCTION_SIZE()];
+    signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
     signal output opcode_bin_6_2[OPCODE_6_2_SIZE()];
 
     for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) {
@@ -39,7 +15,7 @@ template Opcode_Parser() {
 }
 
 template F_Parser() {
-    signal input instruction_bin[INSTRUCTION_SIZE()];
+    signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
     signal output f3_bin[F3_SIZE()];
     signal output f7_bin[F7_SIZE()];
 
@@ -53,12 +29,12 @@ template F_Parser() {
 }
 
 template R_Parser() {
-    signal input instruction_bin[INSTRUCTION_SIZE()];
-    signal output rs1_bin[R_SIZE()];
-    signal output rs2_bin[R_SIZE()];
-    signal output rd_bin[R_SIZE()];
+    signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
+    signal output rs1_bin[R_ADDRESS_SIZE()];
+    signal output rs2_bin[R_ADDRESS_SIZE()];
+    signal output rd_bin[R_ADDRESS_SIZE()];
 
-    for (var ii = 0; ii < R_SIZE(); ii++) {
+    for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) {
         rs1_bin[ii] <== instruction_bin[ii + 15];
         rs2_bin[ii] <== instruction_bin[ii + 20];
         rd_bin[ii] <== instruction_bin[ii + 7];
@@ -103,7 +79,7 @@ FMTs = {
 */
 
 template Imm_Parser() {
-    signal input instruction_bin[INSTRUCTION_SIZE()];
+    signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
     signal output r_dec;
     signal output i_dec;
     signal output s_dec;
@@ -132,12 +108,12 @@ template Imm_Parser() {
 
 template Type_and_Imm_Parser() {
     signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
-    signal input instruction_bin[INSTRUCTION_SIZE()];
+    signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
     signal output instructionType_bin[INSTR_TYPE_SIZE()];
     signal output imm_dec;
 
     component imm = Imm_Parser();
-    for (var ii = 0; ii < INSTRUCTION_SIZE(); ii++) imm.instruction_bin[ii] <== instruction_bin[ii];
+    for (var ii = 0; ii < INSTRUCTION_SIZE_BITS(); ii++) imm.instruction_bin[ii] <== instruction_bin[ii];
 
     var muxSize = 2;
 
@@ -201,21 +177,21 @@ template Type_and_Imm_Parser() {
 }
 
 template RV32I_Decoder() {
-    signal input instruction_bin[INSTRUCTION_SIZE()];
+    signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
     signal output instructionType_bin[INSTR_TYPE_SIZE()];
     signal output opcode_bin_6_2[OPCODE_6_2_SIZE()];
     signal output f3_bin[F3_SIZE()];
     signal output f7_bin[F7_SIZE()];
-    signal output rs1_bin[R_SIZE()];
-    signal output rs2_bin[R_SIZE()];
-    signal output rd_bin[R_SIZE()];
+    signal output rs1_bin[R_ADDRESS_SIZE()];
+    signal output rs2_bin[R_ADDRESS_SIZE()];
+    signal output rd_bin[R_ADDRESS_SIZE()];
     signal output imm_dec;
 
     // get opcode 6:2, Fs, Rs
     component opcode_6_2 = Opcode_Parser();
     component F = F_Parser();
     component R = R_Parser();
-    for (var ii = 0; ii < INSTRUCTION_SIZE(); ii++) {
+    for (var ii = 0; ii < INSTRUCTION_SIZE_BITS(); ii++) {
         opcode_6_2.instruction_bin[ii] <== instruction_bin[ii];
         F.instruction_bin[ii] <== instruction_bin[ii];
         R.instruction_bin[ii] <== instruction_bin[ii];
@@ -225,14 +201,14 @@ template RV32I_Decoder() {
     for (var ii = 0; ii < F3_SIZE(); ii++) f3_bin[ii] <== F.f3_bin[ii];
     for (var ii = 0; ii < F7_SIZE(); ii++) f7_bin[ii] <== F.f7_bin[ii];
 
-    for (var ii = 0; ii < R_SIZE(); ii++) rs1_bin[ii] <== R.rs1_bin[ii];
-    for (var ii = 0; ii < R_SIZE(); ii++) rs2_bin[ii] <== R.rs2_bin[ii];
-    for (var ii = 0; ii < R_SIZE(); ii++) rd_bin[ii] <== R.rd_bin[ii];
+    for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) rs1_bin[ii] <== R.rs1_bin[ii];
+    for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) rs2_bin[ii] <== R.rs2_bin[ii];
+    for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) rd_bin[ii] <== R.rd_bin[ii];
 
     // get instruction type and imm
     component type_and_imm = Type_and_Imm_Parser();
     for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) type_and_imm.opcode_bin_6_2[ii] <== opcode_bin_6_2[ii];
-    for (var ii = 0; ii < INSTRUCTION_SIZE(); ii++) type_and_imm.instruction_bin[ii] <== instruction_bin[ii];
+    for (var ii = 0; ii < INSTRUCTION_SIZE_BITS(); ii++) type_and_imm.instruction_bin[ii] <== instruction_bin[ii];
     for (var ii = 0; ii < INSTR_TYPE_SIZE(); ii++) instructionType_bin[ii] <== type_and_imm.instructionType_bin[ii];
     imm_dec <== type_and_imm.imm_dec;
 
