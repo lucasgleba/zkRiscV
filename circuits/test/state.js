@@ -1,8 +1,8 @@
 const { getWasmTester } = require("./utils");
 const { fetchMemory } = require("../../vm/js/memory");
 
-describe("memory", function () {
-  it("fetcher", async function () {
+describe("state", function () {
+  it("memory load", async function () {
     const circuit = await getWasmTester("memory64Fetcher.test.circom");
     const mSize = 64;
     const fetchSize = 4;

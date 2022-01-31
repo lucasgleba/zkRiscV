@@ -2,6 +2,7 @@ pragma circom 2.0.2;
 
 include "../../node_modules/circomlib/circuits/mux1.circom";
 include "../../node_modules/circomlib/circuits/mux4.circom";
+include "../../node_modules/circomlib/circuits/switcher.circom";
 
 template MultiMux5(n) {
     var size = 5;
@@ -85,4 +86,59 @@ template Mux6() {
     for (var ii = 0; ii < nInputs; ii++) mux.c[0][ii] <== c[ii];
     for (var ii = 0; ii < size; ii++) mux.s[ii] <== s[ii];
     out <== mux.out[0];
+}
+
+template IMux1() {
+    signal input in;
+    signal input s;
+    signal output out[2];
+    component switcher = Switcher();
+    switcher.sel <== s;
+    switcher.L <== in;
+    switcher.R <== 0;
+    out[0] <== switcher.outL;
+    out[1] <== switcher.outR;
+}
+
+template IMux2() {
+    signal input in;
+    signal input s[2];
+    signal output out[4];
+    component imux0 = IMux1();
+    imux0.in <== in;
+    imux0.s <== s[1];
+    component imux1[2];
+    for (var ii = 0; ii < 2; ii++) {
+        imux1[ii] = IMux1();
+        imux1[ii].s <== s[0];
+        imux1[ii].in <== imux0.out[ii];
+    }
+    for (var ii = 0; ii < 2; ii++) {
+        for (var jj = 0; jj < 2; jj++) {
+            out[ii * 2 + jj] <== imux1[ii].out[jj];
+        }
+    }
+}
+
+template IMux3() {
+    var sSize = 3;
+    var outSize = 2 ** 3;
+    var halfOutSize = outSize / 2;
+    signal input in;
+    signal input s[sSize];
+    signal output out[outSize];
+    component imux0 = IMux1();
+    imux0.in <== in;
+    imux0.s <== s[sSize - 1];
+    component imux2[2];
+    for (var ii = 0; ii < 2; ii++) {
+        imux2[ii] = IMux2();
+        imux2[ii].in <== imux0.out[ii];
+        for (var jj = 0; jj < sSize - 1; jj++) imux2[ii].s[jj] <== s[jj];
+    }
+    for (var ii = 0; ii < 2; ii++) {
+        for (var jj = 0; jj < halfOutSize; jj++) {
+            out[ii * halfOutSize + jj] <== imux2[ii].out[jj];
+        }
+    }
 }
