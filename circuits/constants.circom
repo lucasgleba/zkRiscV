@@ -31,6 +31,7 @@ function M_SLOT_SIZE() {
 }
 
 function N_REGISTERS() {
+    // General purpose register that store data (i.e., excluding r0)
     return 31;
 }
 
