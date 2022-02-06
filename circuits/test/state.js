@@ -28,7 +28,7 @@ describe("state", function () {
       }
       for (let ii = 0; ii < mSize; ii++) {
         const w = await circuit.calculateWitness(
-          { in: input, mIn: m, pointer_dec: ii },
+          { in_dec: input, pointer_dec: ii, k: 1, mIn: m },
           true
         );
         const temp = m[ii];
@@ -62,14 +62,20 @@ describe("state", function () {
     });
     it("store", async function () {
       const circuit = await getWasmTester("registerStore.test.circom");
+      const addressSize = 5;
       const input = 255;
       const r = new Array(nRegisters).fill(null);
       for (let ii = 0; ii < nRegisters; ii++) {
         r[ii] = ii + 1;
       }
       for (let ii = 0; ii < nRegisters + 1; ii++) {
+        const address_bin = ii
+          .toString(2)
+          .padStart(addressSize, "0")
+          .split("")
+          .reverse();
         const w = await circuit.calculateWitness(
-          { in: input, rIn: r, pointer_dec: ii },
+          { in_dec: input, rIn: r, address_bin: address_bin, k: 1 },
           true
         );
         let temp;
