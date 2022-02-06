@@ -20,7 +20,7 @@ function F7_SIZE() {
     return 7;
 }
 
-function INSTR_TYPE_SIZE() {
+function INSTRUCTION_TYPE_SIZE() {
     return 3;
 }
 
@@ -37,4 +37,8 @@ function N_REGISTERS() {
 
 function R_ADDRESS_SIZE() {
     return 5;
+}
+
+function R_SIZE() {
+    return 32;
 }

@@ -89,7 +89,7 @@ template Memory64_Store1(firstAddress) {
     var mSize = 2 ** log2MSize;
 
     signal input pointer_dec;
-    signal input in;
+    signal input in_dec;
     signal input k;
     signal input mIn[mSize];
     signal output mOut[mSize];
@@ -105,7 +105,7 @@ template Memory64_Store1(firstAddress) {
     for (var ii = 0; ii < mSize; ii++) {
         mux[ii].s <== imux.out[ii];
         mux[ii].c[0] <== mIn[ii];
-        mux[ii].c[1] <== in;
+        mux[ii].c[1] <== in_dec;
         mOut[ii] <== mux[ii].out;
     }
 }
@@ -124,8 +124,8 @@ template RV32I_Register_Load() {
 }
 
 template RV32I_Register_Store() {
-    signal input address_bin[R_ADDRESS_SIZE()];;
-    signal input in;
+    signal input address_bin[R_ADDRESS_SIZE()];
+    signal input in_dec;
     signal input k;
     signal input rIn[N_REGISTERS()];
     signal output rOut[N_REGISTERS()];
@@ -139,7 +139,7 @@ template RV32I_Register_Store() {
     for (var ii = 0; ii < N_REGISTERS(); ii++) {
         mux[ii].s <== imux.out[ii + 1];
         mux[ii].c[0] <== rIn[ii];
-        mux[ii].c[1] <== in;
+        mux[ii].c[1] <== in_dec;
         rOut[ii] <== mux[ii].out;
     }
 }

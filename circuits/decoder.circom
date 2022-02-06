@@ -109,7 +109,7 @@ template Imm_Parser() {
 template Type_and_Imm_Parser() {
     signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
     signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
-    signal output instructionType_bin[INSTR_TYPE_SIZE()];
+    signal output instructionType_bin[INSTRUCTION_TYPE_SIZE()];
     signal output imm_dec;
 
     component imm = Imm_Parser();
@@ -168,9 +168,9 @@ template Type_and_Imm_Parser() {
     j_iburisiMux.c[0][1] <== 2;
     j_iburisiMux.c[1][1] <== imm.j_dec;
     
-    component instructionType = Num2Bits(INSTR_TYPE_SIZE());
+    component instructionType = Num2Bits(INSTRUCTION_TYPE_SIZE());
     instructionType.in <== j_iburisiMux.out[0];
-    for (var ii = 0; ii < INSTR_TYPE_SIZE(); ii++) instructionType_bin[ii] <== instructionType.out[ii];
+    for (var ii = 0; ii < INSTRUCTION_TYPE_SIZE(); ii++) instructionType_bin[ii] <== instructionType.out[ii];
 
     imm_dec <== j_iburisiMux.out[1];
 
@@ -178,7 +178,7 @@ template Type_and_Imm_Parser() {
 
 template RV32I_Decoder() {
     signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
-    signal output instructionType_bin[INSTR_TYPE_SIZE()];
+    signal output instructionType_bin[INSTRUCTION_TYPE_SIZE()];
     signal output opcode_bin_6_2[OPCODE_6_2_SIZE()];
     signal output f3_bin[F3_SIZE()];
     signal output f7_bin[F7_SIZE()];
@@ -209,7 +209,7 @@ template RV32I_Decoder() {
     component type_and_imm = Type_and_Imm_Parser();
     for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) type_and_imm.opcode_bin_6_2[ii] <== opcode_bin_6_2[ii];
     for (var ii = 0; ii < INSTRUCTION_SIZE_BITS(); ii++) type_and_imm.instruction_bin[ii] <== instruction_bin[ii];
-    for (var ii = 0; ii < INSTR_TYPE_SIZE(); ii++) instructionType_bin[ii] <== type_and_imm.instructionType_bin[ii];
+    for (var ii = 0; ii < INSTRUCTION_TYPE_SIZE(); ii++) instructionType_bin[ii] <== type_and_imm.instructionType_bin[ii];
     imm_dec <== type_and_imm.imm_dec;
 
 }
