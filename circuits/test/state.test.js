@@ -11,7 +11,7 @@ describe("state", function () {
       for (let ii = 0; ii < mSize; ii++) {
         m[ii] = ii + 1;
       }
-      for (let ii = 0; ii < mSize; ii++) {
+      for (let ii = 0; ii < mSize - fetchSize; ii++) {
         const w = await circuit.calculateWitness(
           { m: m, pointer_dec: ii },
           true

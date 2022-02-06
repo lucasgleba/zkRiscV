@@ -1,6 +1,7 @@
 pragma circom 2.0.2;
 
 include "./lib/muxes.circom";
+include "./lib/bitify.circom";
 include "./constants.circom";
 include "../node_modules/circomlib/circuits/bitify.circom";
 include "../node_modules/circomlib/circuits/binsum.circom";
@@ -14,14 +15,14 @@ template Memory64_Load(fetchSize, mSlotSize, firstAddress) {
     signal input m[mSize];
     signal output out_dec;
 
-    component address[fetchSize];
-    for (var ii = 0; ii < fetchSize; ii++) address[ii] = Num2Bits(log2MSize + 1);
-    for (var ii = 0; ii < fetchSize; ii++) address[ii].in <== pointer_dec + ii - firstAddress;
+    component addresses[fetchSize];
+    for (var ii = 0; ii < fetchSize; ii++) addresses[ii] = Num2Bits_soft(log2MSize);
+    for (var ii = 0; ii < fetchSize; ii++) addresses[ii].in <== pointer_dec + ii - firstAddress;
 
     component mux[fetchSize];
     for (var ii = 0; ii < fetchSize; ii++) mux[ii] = Mux6();
     for (var ii = 0; ii < fetchSize; ii++) {
-        for (var jj = 0; jj < log2MSize; jj++) mux[ii].s[jj] <== address[ii].out[jj];
+        for (var jj = 0; jj < log2MSize; jj++) mux[ii].s[jj] <== addresses[ii].out[jj];
         for (var jj = 0; jj < mSize; jj++) mux[ii].c[jj] <== m[jj];
     }
 
@@ -84,6 +85,7 @@ template Memory64_Load(fetchSize, mSlotSize, firstAddress) {
 
 // }
 
+
 template Memory64_Store1(firstAddress) {
     var log2MSize = 6;
     var mSize = 2 ** log2MSize;
@@ -94,7 +96,7 @@ template Memory64_Store1(firstAddress) {
     signal input mIn[mSize];
     signal output mOut[mSize];
 
-    component s = Num2Bits(log2MSize);
+    component s = Num2Bits_soft(log2MSize);
     s.in <== pointer_dec - firstAddress;
     component imux = IMux6();
     for (var ii = 0; ii < log2MSize; ii++) imux.s[ii] <== s.out[ii];

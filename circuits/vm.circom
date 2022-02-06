@@ -251,4 +251,4 @@ template VM() {
     for (var ii = 0; ii < N_REGISTERS(); ii++) rOut[ii] <== rStore.rOut[ii];
 }
 
-component main = VM();
+// component main = VM();
