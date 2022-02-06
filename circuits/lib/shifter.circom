@@ -75,8 +75,8 @@ template RightShift(n, shift) {
     signal input in;
     signal input k;
     signal output out;
+    signal output rem;
     signal srl;
-    signal rem;
     srl <-- in >> shift;
     rem <-- in - (srl << shift);
     component lt = LessThan(shift);

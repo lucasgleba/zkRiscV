@@ -7,7 +7,7 @@ function zeroExtend(str, size) {
 const TEST_VALUE = 2863311530;
 const TEST_VALUE_BIN = TEST_VALUE.toString(2);
 
-describe("shift", function () {
+describe("shifter", function () {
   it("left", async function () {
     circuit = await getWasmTester("shiftLeft.test.circom");
     for (let shift = 0; shift < 32; shift++) {
