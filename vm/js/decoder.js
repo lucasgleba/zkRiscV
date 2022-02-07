@@ -1,29 +1,5 @@
 const { sliceBin, signExtend, zeroExtend } = require("./utils");
 
-// function parseImm(instruction_bin) {
-//   const imm_31_20 = sliceBin(instruction_bin, 20, 32);
-//   const imm_31_25__11_7 = sliceBin(instruction_bin, 25, 32).concat(
-//     sliceBin(instruction_bin, 7, 12)
-//   );
-//   const imm_31_12 = sliceBin(instruction_bin, 12, 32);
-
-//   const r_bin = 0;
-//   const i_bin = signExtend(imm_31_20, 32);
-//   const s_bin = signExtend(imm_31_25__11_7, 32);
-//   const b_bin = signExtend(imm_31_25__11_7.concat("0"), 32);
-//   const u_bin = imm_31_12.concat("0".repeat(12));
-//   const j_bin = signExtend(imm_31_12, 32);
-
-//   return {
-//     r_bin,
-//     i_bin,
-//     s_bin,
-//     b_bin,
-//     u_bin,
-//     j_bin,
-//   };
-// }
-
 const Imm = {
   raw: {
     imm_31_20: (instruction_bin) => sliceBin(instruction_bin, 20, 32),
