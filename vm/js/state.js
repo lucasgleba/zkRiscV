@@ -1,4 +1,3 @@
-// will error for big fetchSize as it uses normal numbers instead of BigInts
 function fetchMemory(m, fetchSize, pointer) {
   let result = 0;
   for (let ii = 0; ii < fetchSize; ii++) {

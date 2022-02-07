@@ -2,11 +2,6 @@ const { fetchMemory, fetchRegister } = require("./state");
 const { decodeRV32I } = require("./decoder");
 const { zeroExtend } = require("./utils");
 
-const PROGRAM_START = 0;
-const PROGRAM_END = 64;
-const DATA_START = PROGRAM_END;
-const DATA_END = 128;
-
 // TODO: more constants instead of hard code
 
 function compute(pc) {
@@ -22,7 +17,6 @@ function step(state) {
     fetchMemory(state.m, 4, state.pc).toString(2),
     32
   );
-  console.log(rawInstr_bin);
   // decode instruction
   const instr = decodeRV32I(rawInstr_bin);
   // load rs
@@ -36,7 +30,7 @@ function step(state) {
   state.pc = pc;
   // load m
   const mPointer = rs1Value_dec + instr.imm_dec;
-  const mLoaded_dec = fetchMemory(state.m, mPointer);
+  const mLoaded_dec = fetchMemory(state.m, 1, mPointer);
   // set m/r
   const opcodeSlice = instr.opcode_bin_6_2;
   if (opcodeSlice == "01000") {
@@ -47,8 +41,9 @@ function step(state) {
   } else if (opcodeSlice == "11000") {
     return;
   }
-
-  state.r[rd_dec] = out;
+  if (rd_dec > 0) {
+    state.r[rd_dec - 1] = out;
+  }
 }
 
 module.exports = {
