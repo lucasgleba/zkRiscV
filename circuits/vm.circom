@@ -206,6 +206,10 @@ template VM() {
     for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) alu.opcode_bin_6_2[ii] <== decoder.opcode_bin_6_2[ii];
     for (var ii = 0; ii < F3_SIZE(); ii++) alu.f3_bin[ii] <== decoder.f3_bin[ii];
     for (var ii = 0; ii < F7_SIZE(); ii++) alu.f7_bin[ii] <== decoder.f7_bin[ii];
+    for (var ii = 0; ii < R_SIZE(); ii++) {
+        alu.rs1Value_bin[ii] <== rs1Value_bin[ii];
+        alu.rs2Value_bin[ii] <== rs2Value_bin[ii];
+    }
     alu.pcIn_dec <== pcIn;
     alu.rs1Value_dec <== rs1Value_dec;
     alu.rs2Value_dec <== rs2Value_dec;
@@ -252,4 +256,4 @@ template VM() {
     for (var ii = 0; ii < N_REGISTERS(); ii++) rOut[ii] <== rStore.rOut[ii];
 }
 
-// component main = VM();
+component main = VM();

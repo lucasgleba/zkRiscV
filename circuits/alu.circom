@@ -3,6 +3,7 @@ pragma circom 2.0.2;
 include "./constants.circom";
 include "./lib/gates.circom";
 include "./lib/shifter.circom";
+include "../node_modules/circomlib/circuits/mux2.circom";
 include "../node_modules/circomlib/circuits/mux3.circom";
 
 // TODO: look at actual cpu designs for optimization inspo
@@ -48,7 +49,7 @@ template Computator() {
     add_subMux.s <== f7_bin[5];
 
     // TODO: do isz directly, instead [?]
-    sub <== add_subMux.c[1] - 2 ** R_SIZE();
+    sub <== a_dec - b_dec;
 
     // xor, or, and
     component or = BitwiseOR(R_SIZE());
@@ -115,13 +116,6 @@ template Computator() {
     mainMux.c[6] <== bitOp.out;
     mainMux.c[7] <== bitOp.out;
     for (var ii = 0; ii < F3_SIZE(); ii++) mainMux.s[ii] <== f3_bin[ii];
-
-    // TODO: do this at the ALU level
-    // TODO: replace shift by bitfit template [?]
-    // component bitfit = RightShift(R_SIZE(), R_SIZE());
-    // bitfit.in <== mainMux.out;
-    // bitfit.k <== 0;
-    // out_dec <== bitfit.rem;
 
 }
 
@@ -213,13 +207,13 @@ template Jump() {
 */
 
 template Branch() {
-    signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
+    // signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
     signal input f3_bin[F3_SIZE()];
     // signal input f7_bin[F7_SIZE()];
-    signal input rs1Value_bin[R_SIZE()];
-    signal input rs2Value_bin[R_SIZE()];
-    signal input rs1Value_dec;
-    signal input rs2Value_dec;
+    // signal input rs1Value_bin[R_SIZE()];
+    // signal input rs2Value_bin[R_SIZE()];
+    // signal input rs1Value_dec;
+    // signal input rs2Value_dec;
     signal input imm_dec;
     signal input pcIn_dec;
     signal input sub;
@@ -259,16 +253,80 @@ template ALU() {
     signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
     signal input f3_bin[F3_SIZE()];
     signal input f7_bin[F7_SIZE()];
+    signal input rs1Value_bin[R_SIZE()];
+    signal input rs2Value_bin[R_SIZE()];
     signal input rs1Value_dec;
     signal input rs2Value_dec;
     signal input imm_dec;
     signal output out_dec;
     signal output pcOut_dec;
 
+    component computator = ComputatorWrapped();
+    component loadImm = LoadImm();
+    component jump = Jump();
+    component branch = Branch();
 
+    for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) {
+        computator.opcode_bin_6_2[ii] <== opcode_bin_6_2[ii];
+        loadImm.opcode_bin_6_2[ii] <== opcode_bin_6_2[ii];
+        jump.opcode_bin_6_2[ii] <== opcode_bin_6_2[ii];
+    }
 
-    out_dec <== 0;
-    pcOut_dec <== pcIn_dec + 4;
+    for (var ii = 0; ii < F3_SIZE(); ii++) {
+        computator.f3_bin[ii] <== f3_bin[ii];
+        branch.f3_bin[ii] <== f3_bin[ii];
+    }
+    
+    for (var ii = 0; ii < F7_SIZE(); ii++) {
+        computator.f7_bin[ii] <== f7_bin[ii];
+    }
+
+    for (var ii = 0; ii < R_SIZE(); ii++) {
+        computator.rs1Value_bin[ii] <== rs1Value_bin[ii];
+        computator.rs2Value_bin[ii] <== rs2Value_bin[ii];
+    }
+
+    computator.rs1Value_dec <== rs1Value_dec;
+    computator.rs2Value_dec <== rs2Value_dec;
+    jump.rs1Value_dec <== rs1Value_dec;
+
+    computator.imm_dec <== imm_dec;
+    loadImm.imm_dec <== imm_dec;
+    jump.imm_dec <== imm_dec;
+    branch.imm_dec <== imm_dec;
+    
+    computator.pcIn_dec <== pcIn_dec;
+    loadImm.pcIn_dec <== pcIn_dec;
+    jump.pcIn_dec <== pcIn_dec;
+    branch.pcIn_dec <== pcIn_dec;
+
+    branch.sub <== computator.sub;
+    branch.slt <== computator.slt;
+    branch.sltu <== computator.sltu;
+
+    component mainMux = MultiMux2(2);
+    // comp
+    mainMux.c[0][0] <== computator.out_dec;
+    mainMux.c[1][0] <== computator.pcOut_dec;
+    // loadi
+    mainMux.c[0][1] <== loadImm.out_dec;
+    mainMux.c[1][1] <== loadImm.pcOut_dec;
+    // jump
+    mainMux.c[0][2] <== jump.out_dec;
+    mainMux.c[1][2] <== jump.pcOut_dec;
+    // comp
+    mainMux.c[0][3] <== 0;
+    mainMux.c[1][3] <== branch.pcOut_dec;
+
+    for (var ii = 0; ii < 2; ii++) mainMux.s[ii] <== instructionType_bin[ii];
+
+    pcOut_dec <== mainMux.out[1];
+
+    // TODO: replace shift by bitfit template [?]
+    component bitfit = RightShift(R_SIZE(), R_SIZE());
+    bitfit.in <== mainMux.out[0];
+    bitfit.k <== 0;
+    out_dec <== bitfit.rem;
 }
 
 // component main = ALU();
