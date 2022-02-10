@@ -2,5 +2,5 @@ pragma circom 2.0.2;
 
 include "../../vm.circom";
 
-component main = VM();
+component main = VMStep_Flat();
 

@@ -1,5 +1,6 @@
 pragma circom 2.0.2;
 
+include "./lib/packHash.circom";
 include "./decoder.circom";
 include "./state.circom";
 include "./alu.circom";
@@ -139,7 +140,7 @@ template NewRDValueDecider() {
     out_dec <== mux.out;
 }
 
-template VM() {
+template VMStep_Flat() {
     assert(PROGRAM_SIZE() == 64);
 
     signal input pcIn;
@@ -256,4 +257,95 @@ template VM() {
     for (var ii = 0; ii < N_REGISTERS(); ii++) rOut[ii] <== rStore.rOut[ii];
 }
 
-component main = VM();
+template VMMultiStep_Flat(n) {
+    signal input pcIn;
+    signal input rIn[N_REGISTERS()];
+    signal input mIn[MEMORY_SIZE()];
+    signal output pcOut;
+    signal output rOut[N_REGISTERS()];
+    signal output mOut[MEMORY_SIZE()];
+
+    component steps[n];
+    for (var ii = 0; ii < n; ii++) steps[ii] = VMStep_Flat();
+    
+    steps[0].pcIn <== pcIn;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) {
+        steps[0].rIn[ii] <== rIn[ii];
+    }
+    for (var ii = 0; ii < MEMORY_SIZE(); ii++) {
+        steps[0].mIn[ii] <== mIn[ii];
+    }
+
+    for (var ii = 1; ii < n; ii++) {
+        steps[ii].pcIn <== steps[ii - 1].pcOut;
+        for (var jj = 0; jj < N_REGISTERS(); jj++) {
+            steps[ii].rIn[jj] <== steps[ii - 1].rOut[jj];
+        }
+        for (var jj = 0; jj < MEMORY_SIZE(); jj++) {
+            steps[ii].mIn[jj] <== steps[ii - 1].mOut[jj];
+        }
+    }
+
+    pcOut <== steps[n - 1].pcOut;
+    for (var jj = 0; jj < N_REGISTERS(); jj++) {
+        rOut[jj] <== steps[n - 1].rOut[jj];
+    }
+    for (var jj = 0; jj < MEMORY_SIZE(); jj++) {
+        mOut[jj] <== steps[n - 1].mOut[jj];
+    }
+
+}
+
+template StateHash_Flat() {
+    signal input pcIn;
+    signal input rIn[N_REGISTERS()];
+    signal input mIn[MEMORY_SIZE()];
+    signal output out;
+
+    var stateSize = 1 + N_REGISTERS() + MEMORY_SIZE();
+
+    component hash = PackHash(stateSize, 8);
+    hash.in[0] <== pcIn;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) hash.in[1 + ii] <== rIn[ii];
+    for (var ii = 0; ii < MEMORY_SIZE(); ii++) hash.in[1 + N_REGISTERS() + ii] <== mIn[ii];
+
+    out <== hash.out;
+}
+
+template ValidVMStep_Flat(n) {
+    signal input pcIn;
+    signal input rIn[N_REGISTERS()];
+    signal input mIn[MEMORY_SIZE()];
+    signal input root0;
+    signal input root1;
+    signal output pcOut;
+    signal output rOut[N_REGISTERS()];
+    signal output mOut[MEMORY_SIZE()];
+
+    component stateHash0 = StateHash_Flat();
+    component vm = VMMultiStep_Flat(n);
+    stateHash0.pcIn <== pcIn;
+    vm.pcIn <== pcIn;
+    
+    for (var ii = 0; ii < N_REGISTERS(); ii++) {
+        stateHash0.rIn[ii] <== rIn[ii];
+        vm.rIn[ii] <== rIn[ii];
+    }
+    
+    for (var ii = 0; ii < MEMORY_SIZE(); ii++) {
+        stateHash0.mIn[ii] <== mIn[ii];
+        vm.mIn[ii] <== mIn[ii];
+    }
+
+    root0 === stateHash0.out;
+
+    component stateHash1 = StateHash_Flat();
+    stateHash1.pcIn <== vm.pcOut;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) stateHash1.rIn[ii] <== vm.rOut[ii];
+    for (var ii = 0; ii < MEMORY_SIZE(); ii++) stateHash1.mIn[ii] <== vm.mOut[ii];
+
+    root1 === stateHash1.out;
+
+}
+
+component main = ValidVMStep_Flat(16);
