@@ -120,7 +120,7 @@ template Computator() {
 }
 
 template ComputatorWrapped() {
-    // signal input instructionType_bin;
+    signal input instructionType_bin[INSTRUCTION_TYPE_SIZE()];
     signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
     signal input f3_bin[F3_SIZE()];
     signal input f7_bin[F7_SIZE()];
@@ -149,7 +149,10 @@ template ComputatorWrapped() {
         bMux.c[ii + 1][0] <== imm_bin.out[ii];
         bMux.c[ii + 1][1] <== rs2Value_bin[ii];
     }
-    bMux.s <== opcode_bin_6_2[3];
+    component bOR = OR();
+    bOR.a <== instructionType_bin[0];
+    bOR.b <== instructionType_bin[2];
+    bMux.s <== bOR.out;
 
     component computator = Computator();
 
@@ -266,6 +269,10 @@ template ALU() {
     component jump = Jump();
     component branch = Branch();
 
+    for (var ii = 0; ii < INSTRUCTION_TYPE_SIZE(); ii++) {
+        computator.instructionType_bin[ii] <== instructionType_bin[ii];
+    }
+    
     for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) {
         computator.opcode_bin_6_2[ii] <== opcode_bin_6_2[ii];
         loadImm.opcode_bin_6_2[ii] <== opcode_bin_6_2[ii];
