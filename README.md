@@ -13,3 +13,6 @@ Notes:
 - Feb 7, 2022: When using non-merkleized memory, does it make sense to distinguishing between memory and registers? (other than for RISC-V compatibility)
     - Could put it all in the same array and save some load/stores.
     - Would not be possible to address registers with a 5-bit address.
+
+Constrains in ValidVMStep_Flat(n); mSize = 128 (Harvard):
+2235 * n + 3960 * 2

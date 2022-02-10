@@ -348,4 +348,4 @@ template ValidVMStep_Flat(n) {
 
 }
 
-component main = ValidVMStep_Flat(16);
+// component main {public [root0, root1]} = ValidVMStep_Flat(16);
