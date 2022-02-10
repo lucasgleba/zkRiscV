@@ -8,6 +8,7 @@ include "../node_modules/circomlib/circuits/gates.circom";
 
 // TODO: make names more consistent
 // TODO: load vs fetch
+// TODO: check r and m values are never going to be out of bounds
 
 function LOG2_PROGRAM_SIZE() {
     return 6;

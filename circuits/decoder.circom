@@ -106,6 +106,7 @@ template Imm_Parser() {
 
 }
 
+// TODO: format mux names so out when s=0 goes first [?]
 template Type_and_Imm_Parser() {
     signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
     signal input instruction_bin[INSTRUCTION_SIZE_BITS()];
