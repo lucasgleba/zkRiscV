@@ -14,5 +14,5 @@ Notes:
     - Could put it all in the same array and save some load/stores.
     - Would not be possible to address registers with a 5-bit address.
 
-Constrains in ValidVMStep_Flat(n); mSize = 128 (Harvard):
-2235 * n + 3960 * 2
+Constrains in ValidVMStep_Flat(n); mSize = 128 (Harvard): 2235 * n + 3960 * 2
+Can fit 465 VM steps in 2^constraints.
