@@ -7,6 +7,7 @@ const { opcodes_6_2, sampleOpcode } = require("./sample");
 
 // TODO: test alu modules and alu end to end
 // TODO: test against modded risc-v tests
+// TODO: test valid vm multistep
 
 function instrToDecArray(instruction_bin) {
   const arr = new Array(4).fill(null);

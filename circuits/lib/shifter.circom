@@ -2,6 +2,7 @@ pragma circom 2.0.2;
 
 include "./muxes.circom";
 include "./utils.circom";
+include "./bitify.circom";
 include "../../node_modules/circomlib/circuits/comparators.circom";
 
 template LeftBinShift(n, shift) {
@@ -79,10 +80,10 @@ template RightShift(n, shift) {
     signal srl;
     srl <-- in >> shift;
     rem <-- in - (srl << shift);
-    component lt = LessThan(shift);
-    lt.in[0] <== rem;
-    lt.in[1] <== 2 ** shift;
-    lt.out === 1;
+    component srlCheck = AssertInBitRange(n - shift);
+    component remCheck = AssertInBitRange(shift);
+    srlCheck.in <== srl;
+    remCheck.in <== rem;
     srl * 2 ** shift + rem === in;
     out <== srl + k * signExtension(n - shift, n);
 }
@@ -104,6 +105,8 @@ template Shift(n, shift, right) {
 }
 
 template VariableShift32(n, right) {
+    assert(n == 32);
+
     signal input in;
     signal input shift[5];
     signal input k;

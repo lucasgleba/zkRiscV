@@ -346,7 +346,7 @@ template ALU() {
     pcOut_dec <== mainMux.out[1];
 
     // TODO: replace shift by bitfit template [?]
-    component bitfit = RightShift(R_SIZE(), R_SIZE());
+    component bitfit = RightShift(R_SIZE() + 1, R_SIZE());
     bitfit.in <== mainMux.out[0];
     bitfit.k <== 0;
     out_dec <== bitfit.rem;

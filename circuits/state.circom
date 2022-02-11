@@ -33,7 +33,7 @@ template Memory64_Load(fetchSize, mSlotSize, firstAddress) {
     out_dec <== result[fetchSize - 1];
 }
 
-template Memory64_Store1(firstAddress) {`
+template Memory64_Store1(firstAddress) {
     var log2MSize = 6;
     var mSize = 2 ** log2MSize;
 
