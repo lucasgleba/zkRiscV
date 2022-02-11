@@ -14,17 +14,20 @@ function _slt(aa, bb) {
 }
 
 function _sll(value, shift) {
+  shift = shift % 32;
   // js << is weird
   const value_bin = zeroExtend(value.toString(2), 32);
   return parseInt(value_bin.slice(shift, 32).concat("0".repeat(shift)), 2);
 }
 
-function _srl(value) {
+function _srl(value, shift) {
+  shift = shift % 32;
   const value_bin = zeroExtend(value.toString(2), 32);
   return parseInt(value_bin.slice(0, 32 - shift), 2);
 }
 
-function _sra(value) {
+function _sra(value, shift) {
+  shift = shift % 32;
   const value_bin = zeroExtend(value.toString(2), 32);
   return parseInt(signExtend(value_bin.slice(0, 32 - shift), 32), 2);
 }
@@ -85,7 +88,8 @@ function loadImm(instr, rs1Value_dec, rs2Value_dec, pcIn) {
 function jump(instr, rs1Value_dec, rs2Value_dec, pcIn) {
   return {
     out: pcIn + 4,
-    pcOut: instr.imm_dec + (instr.opcode_bin_6_2[3] == "0" ? rs1Value_dec : pcIn),
+    pcOut:
+      instr.imm_dec + (instr.opcode_bin_6_2[3] == "0" ? rs1Value_dec : pcIn),
   };
 }
 
@@ -93,23 +97,23 @@ function branch(instr, rs1Value_dec, rs2Value_dec, pcIn) {
   const f3_dec = parseInt(instr.f3_bin, 2);
   let branch;
   if (f3_dec == 0) {
-    branch = aa == bb;
+    branch = rs1Value_dec == rs2Value_dec;
   } else if (f3_dec == 1) {
-    branch = aa != bb;
+    branch = rs1Value_dec != rs2Value_dec;
   } else if (f3_dec == 4) {
-    branch = _slt(aa, bb);
+    branch = _slt(rs1Value_dec, rs2Value_dec);
   } else if (f3_dec == 5) {
-    branch = !_slt(aa, bb);
+    branch = !_slt(rs1Value_dec, rs2Value_dec);
   } else if (f3_dec == 6) {
-    branch = aa < bb;
+    branch = rs1Value_dec < rs2Value_dec;
   } else if (f3_dec == 7) {
-    branch = a >= bb;
+    branch = rs1Value_dec >= rs2Value_dec;
   } else {
     throw "f7 not valid";
   }
   const pcDelta = branch ? instr.imm_dec : 4;
   return {
-    out: null,
+    out: 0,
     pcOut: pcIn + pcDelta,
   };
 }
@@ -121,10 +125,10 @@ function alu(instr, rs1Value_dec, rs2Value_dec, pcIn) {
     return loadImm(...arguments);
   } else if (instr.instructionType_bin == "010") {
     return jump(...arguments);
-  } else if (instr.instructionType_bin == "100") {
+  } else if (instr.instructionType_bin == "011") {
     return branch(...arguments);
   } else {
-    return { pcOut: pcIn + 4, out: null };
+    return { pcOut: pcIn + 4, out: 0 };
   }
 }
 
@@ -186,4 +190,8 @@ module.exports = {
   step,
   alu,
   multiStep,
+  computeWrapped,
+  jump,
+  loadImm,
+  branch,
 };

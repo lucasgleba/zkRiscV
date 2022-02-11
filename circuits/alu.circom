@@ -36,8 +36,8 @@ template Computator() {
     signal input b_dec;
     signal input f3_bin[F3_SIZE()];
     signal input f7_bin[F7_SIZE()];
+    signal input isROp;
     signal output out_dec;
-    // signal output pcOut_dec;
     signal output sub;
     signal output slt;
     signal output sltu;
@@ -46,7 +46,10 @@ template Computator() {
     component add_subMux = Mux1();
     add_subMux.c[0] <== a_dec + b_dec;
     add_subMux.c[1] <== 2 ** R_SIZE() + a_dec - b_dec;
-    add_subMux.s <== f7_bin[5];
+    component addsubAND = AND();
+    addsubAND.a <== isROp;
+    addsubAND.b <== f7_bin[5];
+    add_subMux.s <== addsubAND.out;
 
     // TODO: do isz directly, instead [?]
     sub <== a_dec - b_dec;
@@ -117,6 +120,8 @@ template Computator() {
     mainMux.c[7] <== bitOp.out;
     for (var ii = 0; ii < F3_SIZE(); ii++) mainMux.s[ii] <== f3_bin[ii];
 
+    out_dec <== mainMux.out;
+
 }
 
 template ComputatorWrapped() {
@@ -138,10 +143,12 @@ template ComputatorWrapped() {
 
     pcOut_dec <== pcIn_dec + 4;
 
+    signal isROp;
+    isROp <== opcode_bin_6_2[3];
+
     component imm_bin = Num2Bits(R_SIZE());
     imm_bin.in <== imm_dec;
 
-    // TODO: always use rs2 if branching
     component bMux = MultiMux1(R_SIZE() + 1);
     bMux.c[0][0] <== imm_dec;
     bMux.c[0][1] <== rs2Value_dec;
@@ -149,14 +156,17 @@ template ComputatorWrapped() {
         bMux.c[ii + 1][0] <== imm_bin.out[ii];
         bMux.c[ii + 1][1] <== rs2Value_bin[ii];
     }
-    component bNOT = NOT();
-    bNOT.in <== opcode_bin_6_2[4];
-    component bOR = OR();
-    bOR.a <== bNOT.out;
-    bOR.b <== instructionType_bin[2];
-    bMux.s <== bOR.out;
+    // component bNOT = NOT();
+    // bNOT.in <== isROp;
+    // component bOR = OR();
+    // bOR.a <== bNOT.out;
+    // bOR.b <== instructionType_bin[1];
+    // bMux.s <== bOR.out;
+    bMux.s <== isROp;
 
     component computator = Computator();
+
+    computator.isROp <== isROp;
 
     for (var ii = 0; ii < R_SIZE(); ii++) {
         computator.a_bin[ii] <== rs1Value_bin[ii];
@@ -170,6 +180,10 @@ template ComputatorWrapped() {
     for (var ii = 0; ii < F7_SIZE(); ii++) computator.f7_bin[ii] <== f7_bin[ii];
 
     out_dec <== computator.out_dec;
+
+    sub <== computator.sub;
+    slt <== computator.slt;
+    sltu <== computator.sltu;
 
 }
 
@@ -338,4 +352,4 @@ template ALU() {
     out_dec <== bitfit.rem;
 }
 
-component main = ALU();
+// component main = ALU();
