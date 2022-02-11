@@ -33,8 +33,9 @@ function _sra(value) {
 function compute(instr, aa, bb) {
   const f3_dec = parseInt(instr.f3_bin, 2);
   const f7_iszr = parseInt(instr.f7_bin, 2) == 0;
+  const usingImm = instr.opcode_bin_6_2[1] == "0";
   if (f3_dec == 0) {
-    if (f7_iszr) {
+    if (f7_iszr || usingImm) {
       return aa + bb;
     } else {
       return aa - bb;
@@ -71,7 +72,7 @@ function computeWrapped(instr, rs1Value_dec, rs2Value_dec, pcIn) {
 }
 
 function loadImm(instr, rs1Value_dec, rs2Value_dec, pcIn) {
-  let out = instr.imm;
+  let out = instr.imm_dec;
   if (instr.opcode_bin_6_2[1] == "0") {
     out += pcIn;
   }
@@ -84,7 +85,7 @@ function loadImm(instr, rs1Value_dec, rs2Value_dec, pcIn) {
 function jump(instr, rs1Value_dec, rs2Value_dec, pcIn) {
   return {
     out: pcIn + 4,
-    pcOut: instr.imm + (instr.opcode_bin_6_2[3] == "0" ? rs1Value_dec : pcIn),
+    pcOut: instr.imm_dec + (instr.opcode_bin_6_2[3] == "0" ? rs1Value_dec : pcIn),
   };
 }
 
@@ -106,7 +107,7 @@ function branch(instr, rs1Value_dec, rs2Value_dec, pcIn) {
   } else {
     throw "f7 not valid";
   }
-  const pcDelta = branch ? instr.imm : 4;
+  const pcDelta = branch ? instr.imm_dec : 4;
   return {
     out: null,
     pcOut: pcIn + pcDelta,
@@ -116,11 +117,11 @@ function branch(instr, rs1Value_dec, rs2Value_dec, pcIn) {
 function alu(instr, rs1Value_dec, rs2Value_dec, pcIn) {
   if (instr.instructionType_bin == "000") {
     return computeWrapped(...arguments);
-  } else if (instr.instructionType_bin == "000") {
+  } else if (instr.instructionType_bin == "001") {
     return loadImm(...arguments);
-  } else if (instr.instructionType_bin == "000") {
+  } else if (instr.instructionType_bin == "010") {
     return jump(...arguments);
-  } else if (instr.instructionType_bin == "000") {
+  } else if (instr.instructionType_bin == "100") {
     return branch(...arguments);
   } else {
     return { pcOut: pcIn + 4, out: null };
@@ -133,7 +134,7 @@ function step(state) {
     fetchMemory(state.m, 4, state.pc).toString(2),
     32
   );
-  console.log(state.pc + "\t", rawInstr_bin);
+  // console.log(state.pc + "\t" + rawInstr_bin);
   // decode instruction
   const instr = decodeRV32I(rawInstr_bin);
   // load rs and pointer
@@ -143,6 +144,14 @@ function step(state) {
   const rs1Value_dec = fetchRegister(state.r, rs1_dec);
   const rs2Value_dec = fetchRegister(state.r, rs2_dec);
   const mPointer = rs1Value_dec + instr.imm_dec;
+
+  // console.log("instr", instr);
+  // console.log("rs1Value_dec", rs1Value_dec);
+  // console.log("rs2Value_dec", rs2Value_dec);
+  // console.log("mPointer", mPointer);
+  // console.log(state.r);
+
+  let out;
 
   const opcodeSlice = instr.opcode_bin_6_2;
   if (opcodeSlice == "01000") {
@@ -156,8 +165,9 @@ function step(state) {
     state.pc += 4;
   } else {
     // not load/store
-    const [out, pcOut] = alu(instr, rs1Value_dec, rs2Value_dec, state.pc);
-    state.pc = pcOut;
+    const aluOut = alu(instr, rs1Value_dec, rs2Value_dec, state.pc);
+    out = aluOut.out;
+    state.pc = aluOut.pcOut;
   }
 
   if (opcodeSlice != "11000" && rd_dec > 0) {
