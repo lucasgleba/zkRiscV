@@ -1,6 +1,7 @@
 pragma circom 2.0.2;
 
 include "./lib/packHash.circom";
+include "./lib/bitify.circom";
 include "./decoder.circom";
 include "./state.circom";
 include "./alu.circom";
@@ -273,7 +274,7 @@ template StateHash_Flat() {
     out <== hash.out;
 }
 
-template ValidVMStep_Flat(n) {
+template ValidVMMultiStep_Flat(n, rangeCheck) {
     signal input pcIn;
     signal input rIn[N_REGISTERS()];
     signal input mIn[MEMORY_SIZE()];
@@ -282,6 +283,19 @@ template ValidVMStep_Flat(n) {
     signal output pcOut;
     signal output rOut[N_REGISTERS()];
     signal output mOut[MEMORY_SIZE()];
+
+    // component pcRangeCheck;
+    component rRangeCheck;
+    component mRangeCheck;
+
+    if (rangeCheck == 1) {
+        // pcRangeCheck = AssertInBitRange(R_SIZE());
+        // pcRangeCheck.in <== pcIn;
+        rRangeCheck = MultiAssertInBitRange(N_REGISTERS(), R_SIZE());
+        for (var ii = 0; ii < N_REGISTERS(); ii++) rRangeCheck.in[ii] <== rIn[ii];
+        mRangeCheck = MultiAssertInBitRange(MEMORY_SIZE(), R_SIZE());
+        for (var ii = 0; ii < MEMORY_SIZE(); ii++) mRangeCheck.in[ii] <== mIn[ii];
+    }
 
     component stateHash0 = StateHash_Flat();
     component vm = VMMultiStep_Flat(n);
@@ -309,4 +323,4 @@ template ValidVMStep_Flat(n) {
 
 }
 
-// component main {public [root0, root1]} = ValidVMStep_Flat(16);
+// component main {public [root0, root1]} = ValidVMMultiStep_Flat(1, 0);
