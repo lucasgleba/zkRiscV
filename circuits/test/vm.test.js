@@ -6,6 +6,7 @@ const { decodeRV32I } = require("../../vm/js/decoder");
 const { opcodes_6_2, sampleOpcode } = require("./sample");
 
 // TODO: test alu modules and alu end to end
+// TODO: test entire execution of program end to end
 // TODO: test against modded risc-v tests
 // TODO: test valid vm multistep
 

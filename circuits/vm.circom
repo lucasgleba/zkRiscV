@@ -267,6 +267,8 @@ template StateHash_Flat() {
     var stateSize = 1 + N_REGISTERS() + MEMORY_SIZE();
 
     component hash = PackHash(stateSize, 8);
+    // TODO: is this packing 32-bit register as 8-bit [???]
+    // TODO: separate packing from hashing, pack rs as 32 bit and ms as 8 bit [!]
     hash.in[0] <== pcIn;
     for (var ii = 0; ii < N_REGISTERS(); ii++) hash.in[1 + ii] <== rIn[ii];
     for (var ii = 0; ii < MEMORY_SIZE(); ii++) hash.in[1 + N_REGISTERS() + ii] <== mIn[ii];
@@ -324,3 +326,41 @@ template ValidVMMultiStep_Flat(n, rangeCheck) {
 }
 
 // component main {public [root0, root1]} = ValidVMMultiStep_Flat(1, 0);
+
+/**
+
+******** CONSTRAINS ********
+
+ALU         2444
+    CompW   2397
+    LoadI   1
+    Jump    3
+    Branch  6
+
+Decoder 13
+
+State
+    Memory64_Load1  339  // [!] Most from Num2Bits_soft32
+    Memory64_Load4  1356  // [!]
+    Memory64_Store1 387 // [!]
+    RV32I_Register_Load     39
+    RV32I_Register_Store    62
+
+VMStep_Flat     4780
+StateHash_Flat  3960 // Shouldn't this be 660 * 8 instead of 6 [???]
+
+BitwiseXOR32    32
+BitwiseOR32     32
+BitwiseAND32    32
+
+Num2Bits_soft32     286 // [!]
+AssertInBitRange32  32
+
+LeftShift1      0
+RightShift32_1  32
+VariableShift32_right       1063 // [!]
+VariableShift32_left        1063 // [!]
+VariableBinShift32_right    760 // [!]
+VariableBinShift32_left     760 // [!]
+
+ */
