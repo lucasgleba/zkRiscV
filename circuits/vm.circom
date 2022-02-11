@@ -1,538 +1,351 @@
 pragma circom 2.0.2;
 
-// TODO: circom 2.0.3 [?]
-// TODO: don't do with bin what you can do with dec
-// TODO: optimize
-// TODO: size-limit pc, out [?]
-// TODO: computator instead of operator [?]
-// TODO: add constrains for input size [?]
-// TODO: break things into smaller components
-// TODO: cost of mux?
-// TODO: use constants instead of hard-coding
-// TODO: more consistent naming
-// TODO: brute force efficient circuits [?]
-// TODO: order the SPAGET
-// TODO: binequals template
+include "./lib/packHash.circom";
+include "./decoder.circom";
+include "./state.circom";
+include "./alu.circom";
+include "../node_modules/circomlib/circuits/bitify.circom";
+include "../node_modules/circomlib/circuits/gates.circom";
 
-include "./gates.circom";
+// TODO: make names more consistent
+// TODO: load vs fetch
+// TODO: check r and m values are never going to be out of bounds
 
-template Operator(bits) {
-    signal input a;
-    signal input b;
-    signal input pc;
-    signal input opcode;
-    signal output out;
+function LOG2_PROGRAM_SIZE() {
+    return 6;
+}
+
+function LOG2_DATA_SIZE() {
+    return 6;
+}
+
+function PROGRAM_SIZE() {
+    return 2 ** LOG2_PROGRAM_SIZE();
+}
+
+function DATA_SIZE() {
+    return 2 ** LOG2_DATA_SIZE();
+}
+
+function MEMORY_SIZE() {
+    return PROGRAM_SIZE() + DATA_SIZE();
+}
+
+function PROGRAM_START() {
+    return 0;
+}
+
+function PROGRAM_END() {
+    return PROGRAM_SIZE();
+}
+
+function DATA_START() {
+    return PROGRAM_END();
+}
+
+function DATA_END() {
+    return MEMORY_SIZE();
+}
+
+
+template MPointer() {
+    signal input imm_dec;
+    signal input rs1Value_dec;
+    signal output out_dec;
+    out_dec <== rs1Value_dec + imm_dec;
+}
+
+template K_Parser() {
+    signal input instructionType_bin[INSTRUCTION_TYPE_SIZE()];
+    signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
+    signal output kM;
+    signal output kR;
+
+    component mAnd = AND();
+    mAnd.a <== instructionType_bin[2];
+    mAnd.b <== opcode_bin_6_2[3];
+    kM <== mAnd.out;
+
+    component rNand = NAND();
+    rNand.a <== instructionType_bin[0];
+    rNand.b <== instructionType_bin[1];
+    component rNot = NOT();
+    rNot.in <== opcode_bin_6_2[3];
+    component rMux = Mux1();
+    rMux.c[0] <== rNand.out;
+    rMux.c[1] <== rNot.out;
+    rMux.s <== instructionType_bin[2];
+    kR <== rMux.out;
+}
+
+// TODO: is the value in an R never gonna be out of bounds [?]
+// template RStore() {
+//     signal input in_dec;
+//     // signal input instructionType_bin[INSTRUCTION_TYPE_SIZE()];
+//     signal input k;
+//     signal input rd_bin[R_ADDRESS_SIZE()];
+//     signal input rIn[N_REGISTERS()];
+//     signal output rOut[N_REGISTERS()];
+//     component k = NOT();
+//     // k.in <== instructionType_bin[1]; // isnt this for fmt instead of type?? TODO [!!!]
+//     component registerStore = RV32I_Register_Store();
+//     registerStore.k <== k.out;
+//     for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) registerStore.address_bin[ii] <== rd_bin[ii];
+//     registerStore.in <== in_dec;
+//     for (var ii = 0; ii < N_REGISTERS(); ii++) registerStore.rIn[ii] <== rIn[ii];
+//     for (var ii = 0; ii < N_REGISTERS(); ii++) rOut[ii] <== registerStore.rOut[ii];
+// }
+
+// // TODO: use funct constants to assign var value once, easier to reuse
+// template MStore() {
+//     signal input in_bin[R_SIZE()];
+//     signal input pointer_dec;
+//     signal input instructionType_bin[INSTRUCTION_TYPE_SIZE()];
+//     signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
+//     signal input mIn[DATA_SIZE()];
+//     signal output mOut[DATA_SIZE()];
+
+//     component inValue_dec = Bits2Num(M_SLOT_SIZE());
+//     for (var ii = 0; ii < M_SLOT_SIZE(); ii++) inValue_dec.in[ii] <== in_bin[ii];
+
+//     component k = AND();
+//     k.a <== instructionType_bin[2];
+//     k.b <== opcode_bin_6_2[3];
+//     component memoryStore = Memory64_Store1(DATA_START());
+//     memoryStore.k <== k.out;
+//     memoryStore.pointer_dec <== pointer_dec;
+//     memoryStore.in <== inValue_dec.out;
+//     for (var ii = 0; ii < DATA_SIZE(); ii++) memoryStore.mIn[ii] <== mIn[ii];
+//     for (var ii = 0; ii < DATA_SIZE(); ii++) mOut[ii] <== memoryStore.mOut[ii];
+// }
+
+template NewRDValueDecider() {
+    signal input aluOut_dec;
+    signal input mOut_dec;
+    signal input instructionType_bin[INSTRUCTION_TYPE_SIZE()];
+    signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
+    signal output out_dec;
+
+    component not = NOT();
+    not.in <== opcode_bin_6_2[3];
+    component and = AND();
+    and.a <== not.out;
+    and.b <== instructionType_bin[2];
+
+    component mux = Mux1();
+    mux.c[0] <== aluOut_dec;
+    mux.c[1] <== mOut_dec;
+    mux.s <== and.out;
+
+    out_dec <== mux.out;
+}
+
+template VMStep_Flat() {
+    assert(PROGRAM_SIZE() == 64);
+
+    signal input pcIn;
+    signal input rIn[N_REGISTERS()];
+    signal input mIn[MEMORY_SIZE()];
+    // signal input rRoots;
+    // signal input mRoots;
     signal output pcOut;
+    signal output rOut[N_REGISTERS()];
+    signal output mOut[MEMORY_SIZE()];
 
-    pcOut <== pc + 4;
-
-    // TODO: Num2Bits vs Num2Bits_strict
-    component aBits = Num2Bits(bits);
-    component bBits = Num2Bits(bits);
-    aBits.in <== a;
-    bBits.in <== b;
-
-    component mux = MultiMux4(bits);
-
-    component add = BinSum(bits, 2);
-    component sub = BinSub(bits + 1);
-    sub.in[0][bits] <== 0;
-    sub.in[1][bits] <== 0;
-    component xor = BitwiseXOR(bits);
-    component or = BitwiseOR(bits);
-    component and = BitwiseAND(bits);
-    component sll = LeftShifter32(32);
-    component srl = RightShifter32(32);
-    component sra = RightShifter32(32);
-    sll.k <== 0;
-    srl.k <== 0;
-    sra.k <== aBits.out[bits - 1];
-
-    for (var ii = 0; ii < bits; ii++) {
-        add.in[0][ii] <== aBits.out[ii];
-        add.in[1][ii] <== bBits.out[ii];
-        sub.in[0][ii] <== aBits.out[ii];
-        sub.in[1][ii] <== bBits.out[ii];
-        xor.in[0][ii] <== aBits.out[ii];
-        xor.in[1][ii] <== bBits.out[ii];
-        or.in[0][ii] <== aBits.out[ii];
-        or.in[1][ii] <== bBits.out[ii];
-        and.in[0][ii] <== aBits.out[ii];
-        and.in[1][ii] <== bBits.out[ii];
-        sll.in[0][ii] <== aBits.out[ii];
-        sll.in[1][ii] <== bBits.out[ii];
-        srl.in[0][ii] <== aBits.out[ii];
-        srl.in[1][ii] <== bBits.out[ii];
-        sra.in[0][ii] <== aBits.out[ii];
-        sra.in[1][ii] <== bBits.out[ii];
+    // set mOut for program slice
+    for (var ii = PROGRAM_START(); ii < PROGRAM_END(); ii++) {
+        mOut[ii] <== mIn[ii];
     }
 
-    for (var ii = 0; ii < bits; ii++) {
-        mux.c[ii][0] <== add.out[ii];
-        mux.c[ii][8] <== sub.out[ii];
-        mux.c[ii][4] <== xor.out[ii];
-        mux.c[ii][6] <== or.out[ii];
-        mux.c[ii][7] <== and.out[ii];
-        mux.c[ii][1] <== sll.out[ii];
-        mux.c[ii][5] <== srl.out[ii];
-        mux.c[ii][12] <== sra.out[ii];
+    // fetch instruction
+    component instructionFetch = Memory64_Load(INSTRUCTION_SIZE_BYTES(), M_SLOT_SIZE(), PROGRAM_START());
+    instructionFetch.pointer_dec <== pcIn;
+    for (var ii = 0; ii < PROGRAM_SIZE(); ii++) instructionFetch.m[ii] <== mIn[PROGRAM_START() + ii];
+
+    // decode instruction
+    component instruction_bin = Num2Bits(INSTRUCTION_SIZE_BITS());
+    instruction_bin.in <== instructionFetch.out_dec;
+
+    component decoder = RV32I_Decoder();
+    for (var ii = 0; ii < INSTRUCTION_SIZE_BITS(); ii++) decoder.instruction_bin[ii] <== instruction_bin.out[ii];
+
+    // load register data
+    component rs1Loader = RV32I_Register_Load();
+    component rs2Loader = RV32I_Register_Load();
+
+    for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) {
+        rs1Loader.address_bin[ii] <== decoder.rs1_bin[ii];
+        rs2Loader.address_bin[ii] <== decoder.rs2_bin[ii];
     }
 
-    mux.c[0][2] <== sub.out[bits - 1];
-    mux.c[0][3] <== sub.out[bits];
-
-    for (var ii = 1; ii < bits; ii++) {
-        mux.c[ii][2] <== 0;
-        mux.c[ii][3] <== 0;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) {
+        rs1Loader.r[ii] <== rIn[ii];
+        rs2Loader.r[ii] <== rIn[ii];
     }
 
-    for (var ii = 9; ii < 12; ii++) {
-        for (var jj = 0; jj < bits; jj++) {
-            mux.c[jj][ii] <== 0;
+    signal rs1Value_dec;
+    signal rs1Value_bin[R_SIZE()];
+    signal rs2Value_dec;
+    signal rs2Value_bin[R_SIZE()];
+
+    rs1Value_dec <== rs1Loader.out_dec;
+    rs2Value_dec <== rs2Loader.out_dec;
+
+    component RValueBin[2];
+    for (var ii = 0; ii < 2; ii++) RValueBin[ii] = Num2Bits(R_SIZE());
+    RValueBin[0].in <== rs1Value_dec;
+    RValueBin[1].in <== rs2Value_dec;
+
+    for (var ii = 0; ii < R_SIZE(); ii++) {
+        rs1Value_bin[ii] <== RValueBin[0].out[ii];
+        rs2Value_bin[ii] <== RValueBin[1].out[ii];
+    }
+
+    // compute
+    component alu = ALU();
+    for (var ii = 0; ii < INSTRUCTION_TYPE_SIZE(); ii++) alu.instructionType_bin[ii] <== decoder.instructionType_bin[ii];
+    for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) alu.opcode_bin_6_2[ii] <== decoder.opcode_bin_6_2[ii];
+    for (var ii = 0; ii < F3_SIZE(); ii++) alu.f3_bin[ii] <== decoder.f3_bin[ii];
+    for (var ii = 0; ii < F7_SIZE(); ii++) alu.f7_bin[ii] <== decoder.f7_bin[ii];
+    for (var ii = 0; ii < R_SIZE(); ii++) {
+        alu.rs1Value_bin[ii] <== rs1Value_bin[ii];
+        alu.rs2Value_bin[ii] <== rs2Value_bin[ii];
+    }
+    alu.pcIn_dec <== pcIn;
+    alu.rs1Value_dec <== rs1Value_dec;
+    alu.rs2Value_dec <== rs2Value_dec;
+    alu.imm_dec <== decoder.imm_dec;
+    pcOut <== alu.pcOut_dec;
+
+    // fetch memory
+    component mPointer = MPointer();
+    mPointer.rs1Value_dec <== rs1Value_dec;
+    mPointer.imm_dec <== decoder.imm_dec;
+
+    component mLoad = Memory64_Load(1, M_SLOT_SIZE(), DATA_START());
+    mLoad.pointer_dec <== mPointer.out_dec;
+    for (var ii = 0; ii < DATA_SIZE(); ii++) mLoad.m[ii] <== mIn[DATA_START() + ii];
+
+    // parse ks
+    component ks = K_Parser();
+    for (var ii = 0; ii < INSTRUCTION_TYPE_SIZE(); ii++) ks.instructionType_bin[ii] <== decoder.instructionType_bin[ii];
+    for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) ks.opcode_bin_6_2[ii] <== decoder.opcode_bin_6_2[ii];
+
+    // store into memory
+    component rs2Value_7_0_dec = Bits2Num(M_SLOT_SIZE());
+    for (var ii = 0; ii < M_SLOT_SIZE(); ii++) rs2Value_7_0_dec.in[ii] <== rs2Value_bin[ii];
+    component mStore = Memory64_Store1(DATA_START());
+    mStore.in_dec <== rs2Value_7_0_dec.out;
+    mStore.pointer_dec <== mPointer.out_dec;
+    mStore.k <== ks.kM;
+    for (var ii = 0; ii < DATA_SIZE(); ii++) mStore.mIn[ii] <== mIn[DATA_START() + ii];
+    for (var ii = 0; ii < DATA_SIZE(); ii++) mOut[DATA_START() + ii] <== mStore.mOut[ii];
+
+    // memory vs alu output
+    component newRDValueDecider = NewRDValueDecider();
+    newRDValueDecider.aluOut_dec <== alu.out_dec;
+    newRDValueDecider.mOut_dec <== mLoad.out_dec;
+    for (var ii = 0; ii < INSTRUCTION_TYPE_SIZE(); ii++) newRDValueDecider.instructionType_bin[ii] <== decoder.instructionType_bin[ii];
+    for (var ii = 0; ii < OPCODE_6_2_SIZE(); ii++) newRDValueDecider.opcode_bin_6_2[ii] <== decoder.opcode_bin_6_2[ii];
+
+    // store into register
+    component rStore = RV32I_Register_Store();
+    rStore.in_dec <== newRDValueDecider.out_dec;
+    rStore.k <== ks.kR;
+    for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) rStore.address_bin[ii] <== decoder.rd_bin[ii];
+    for (var ii = 0; ii < N_REGISTERS(); ii++) rStore.rIn[ii] <== rIn[ii];
+    for (var ii = 0; ii < N_REGISTERS(); ii++) rOut[ii] <== rStore.rOut[ii];
+}
+
+template VMMultiStep_Flat(n) {
+    signal input pcIn;
+    signal input rIn[N_REGISTERS()];
+    signal input mIn[MEMORY_SIZE()];
+    signal output pcOut;
+    signal output rOut[N_REGISTERS()];
+    signal output mOut[MEMORY_SIZE()];
+
+    component steps[n];
+    for (var ii = 0; ii < n; ii++) steps[ii] = VMStep_Flat();
+    
+    steps[0].pcIn <== pcIn;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) {
+        steps[0].rIn[ii] <== rIn[ii];
+    }
+    for (var ii = 0; ii < MEMORY_SIZE(); ii++) {
+        steps[0].mIn[ii] <== mIn[ii];
+    }
+
+    for (var ii = 1; ii < n; ii++) {
+        steps[ii].pcIn <== steps[ii - 1].pcOut;
+        for (var jj = 0; jj < N_REGISTERS(); jj++) {
+            steps[ii].rIn[jj] <== steps[ii - 1].rOut[jj];
+        }
+        for (var jj = 0; jj < MEMORY_SIZE(); jj++) {
+            steps[ii].mIn[jj] <== steps[ii - 1].mOut[jj];
         }
     }
-    
-    for (var ii = 13; ii < 16; ii++) {
-        for (var jj = 0; jj < bits; jj++) {
-            mux.c[jj][ii] <== 0;
-        }
+
+    pcOut <== steps[n - 1].pcOut;
+    for (var jj = 0; jj < N_REGISTERS(); jj++) {
+        rOut[jj] <== steps[n - 1].rOut[jj];
     }
-
-    component funcBits = Num2Bits(bits);
-    funcBits.in <== opcode;
-
-    for (var ii = 0; ii < 4; ii++) {
-        mux.s[ii] <== funcBits.out[ii];
+    for (var jj = 0; jj < MEMORY_SIZE(); jj++) {
+        mOut[jj] <== steps[n - 1].mOut[jj];
     }
-
-    component outNum = Bits2Num(bits);
-
-    for (var ii = 0; ii < bits; ii++) {
-        outNum.in[ii] <==  mux.out[ii];
-    }
-
-    out <== outNum.out;
 
 }
 
-template ImmLoader(bits) {
-    signal input imm;
-    signal input pc;
-    signal input opcode;
+template StateHash_Flat() {
+    signal input pcIn;
+    signal input rIn[N_REGISTERS()];
+    signal input mIn[MEMORY_SIZE()];
     signal output out;
+
+    var stateSize = 1 + N_REGISTERS() + MEMORY_SIZE();
+
+    component hash = PackHash(stateSize, 8);
+    hash.in[0] <== pcIn;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) hash.in[1 + ii] <== rIn[ii];
+    for (var ii = 0; ii < MEMORY_SIZE(); ii++) hash.in[1 + N_REGISTERS() + ii] <== mIn[ii];
+
+    out <== hash.out;
+}
+
+template ValidVMStep_Flat(n) {
+    signal input pcIn;
+    signal input rIn[N_REGISTERS()];
+    signal input mIn[MEMORY_SIZE()];
+    signal input root0;
+    signal input root1;
     signal output pcOut;
-    pcOut <== pc + 4;
-    out <== imm + pc * (1 - opcode);
-}
+    signal output rOut[N_REGISTERS()];
+    signal output mOut[MEMORY_SIZE()];
 
-template Jumper(bits) {
-    signal input rs1;
-    signal input imm;
-    signal input pc;
-    signal input opcode;
-    signal output out;
-    signal output pcOut;
-    out <== pc + 4;
-    component mux = Mux1();
-    mux.c[0] <== rs1 + imm; // jalr
-    mux.c[1] <== pc + imm; // jal
-    mux.s <== opcode;
-    pcOut <== mux.out;
-}
-
-template Brancher(bits) {
-    signal input cmp;
-    signal input imm;
-    signal input pc;
-    signal input neq;
-    signal output out;
-    signal output pcOut;
-    out <== 0;
-    component mux = Mux1();
-    mux.c[0] <== pc + 4;
-    mux.c[1] <== pc + imm; // [?]
-    component zr = IsZero();
-    zr.in <== cmp;
-    component xor = XOR();
-    xor.a <== zr.out;
-    xor.b <== neq;
-    mux.s <== xor.out;
-    pcOut <== mux.out;
-}
-
-template ALU(bits) {
-    signal input rs1;
-    signal input rs2;
-    signal input imm;
-    signal input useImm;
-    signal input pc;
-    signal input insOpcode;
-    signal input funcOpcode;
-    signal input neqOpcode;
-    signal output out;
-    signal output pcOut;
-
-    component op2 = Mux1();
-    op2.c[0] <== rs2;
-    op2.c[1] <== imm;
-    op2.s <== useImm;
-
-    component operator = Operator(bits);
-    operator.a <== rs1;
-    operator.b <== op2.out;
-    operator.pc <== pc;
-    operator.opcode <== funcOpcode;
-
-    component immLoader = ImmLoader(bits);
-    immLoader.imm <== imm;
-    immLoader.pc <== pc;
-    immLoader.opcode <== funcOpcode;
+    component stateHash0 = StateHash_Flat();
+    component vm = VMMultiStep_Flat(n);
+    stateHash0.pcIn <== pcIn;
+    vm.pcIn <== pcIn;
     
-    component jumper = Jumper(bits);
-    jumper.rs1 <== rs1;
-    jumper.imm <== imm;
-    jumper.pc <== pc;
-    jumper.opcode <== funcOpcode;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) {
+        stateHash0.rIn[ii] <== rIn[ii];
+        vm.rIn[ii] <== rIn[ii];
+    }
     
-    component brancher = Brancher(bits);
-    brancher.cmp <== operator.out;
-    brancher.imm <== imm;
-    brancher.pc <== pc;
-    brancher.neq <== neqOpcode;
-
-    component insOpcodeBits = Num2Bits(2);
-    insOpcodeBits.in <== insOpcode;
-
-    component iMux = MultiMux2(2);
-    iMux.c[0][0] <== operator.out;
-    iMux.c[1][0] <== operator.pcOut;
-    iMux.c[0][1] <== immLoader.out;
-    iMux.c[1][1] <== immLoader.pcOut;
-    iMux.c[0][2] <== jumper.out;
-    iMux.c[1][2] <== jumper.pcOut;
-    iMux.c[0][3] <== brancher.out;
-    iMux.c[1][3] <== brancher.pcOut;
-    for (var ii = 0; ii < 2; ii++) {
-        iMux.s[ii] <== insOpcodeBits.out[ii];
+    for (var ii = 0; ii < MEMORY_SIZE(); ii++) {
+        stateHash0.mIn[ii] <== mIn[ii];
+        vm.mIn[ii] <== mIn[ii];
     }
 
-    out <== iMux.out[0];
-    pcOut <== iMux.out[1];
+    root0 === stateHash0.out;
+
+    component stateHash1 = StateHash_Flat();
+    stateHash1.pcIn <== vm.pcOut;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) stateHash1.rIn[ii] <== vm.rOut[ii];
+    for (var ii = 0; ii < MEMORY_SIZE(); ii++) stateHash1.mIn[ii] <== vm.mOut[ii];
+
+    root1 === stateHash1.out;
 
 }
 
-/*
-R operate-r 0110011 51  12  6   3   1   0
-I operate-i 0010011 19  4   2   1   0   0
-I load      0000011 3   0   0   0   0   0
-S store     0100011 35  8   4   2   1   0
-B branch    1100011 99  24  12  6   3   1
-J jal       1101111 111 27  13  6   3   1
-I jalr      1100111 103 25  12  6   3   1
-U lui       0110111 55  13  6   3   1   0
-U auipc     0010111 23  5   2   1   0   0
-
-I load      00000
-I operate-i 00100
-S store     01000
-R operate-r 01100
-            02200
-
-U lui       01101
-U auipc     00101
-            01202
-
-B branch    11000
-I jalr      11001
-            22001
-
-J jal       11011
-
-            36414
-
-R 0
-I 1
-U 2
-B 3
-J 4
-S 5
-
-R operate-r 01100
-            01100
-
-I operate-i 00100
-I jalr      11001
-I load      00000
-            xxx0x
-
-S store     01000
-B branch    11000
-            x1000
-
-J jal       11011
-U lui       01101
-U auipc     00101
-            xxxx1
-*/
-
-function signExtension (dataLength, wordLength) {
-    return (2 ** (wordLength - dataLength) - 1) * 2 ** dataLength;
-}
-
-template InsDecoder() {
-    signal input ins;
-    signal output rd; // ok
-    signal output rs1; // ok
-    signal output rs2; // ok
-    signal output imm; // ok
-    signal output useImm; // ok
-    // TODO: rename these
-    signal output insOpcode; // almost ok
-    signal output funcOpcode;
-    signal output neqOpcode; // ok
-    signal output rOpcode; // ok
-    signal output storeOpcode; // ok
-
-    // ins to bin
-    component insBin = Num2Bits(32);
-    insBin.in <== ins;
-
-    // get ins type
-    component r_sMux = MultiMux1(2);
-    component rs_iMux = MultiMux1(2);
-    component u_rsiMux = MultiMux1(2);
-    component ib_ursiMux = MultiMux1(2);
-    component i_bMux = MultiMux1(2);
-    component j_ibursiMux = MultiMux1(2);
-
-    r_sMux.s <== insBin.out[2 + 2];
-    rs_iMux.s <== insBin.out[3 + 2];
-    u_rsiMux.s <== insBin.out[0 + 2];
-    ib_ursiMux.s <== insBin.out[4 + 2];
-    i_bMux.s <== insBin.out[0 + 2];
-    j_ibursiMux.s <== insBin.out[1 + 2];
-    
-    r_sMux.c[0][0] <== 2; // s
-    r_sMux.c[1][0] <== signExtension(7, 32); // s
-    
-    r_sMux.c[0][1] <== 0; // r
-    r_sMux.c[1][1] <== 0; // r
-    
-    rs_iMux.c[0][0] <== 1; // i
-    rs_iMux.c[1][0] <== signExtension(12, 32); // i
-    
-    rs_iMux.c[0][1] <== r_sMux.out[0]; // rs
-    rs_iMux.c[1][1] <== r_sMux.out[1]; // rs
-    
-    u_rsiMux.c[0][0] <== rs_iMux.out[0]; // rsi
-    u_rsiMux.c[1][0] <== rs_iMux.out[1]; // rsi
-    
-    u_rsiMux.c[0][1] <== 4; // u
-    u_rsiMux.c[1][1] <== 0; // u
-    
-    i_bMux.c[0][0] <== 3; // b
-    i_bMux.c[1][0] <== signExtension(13, 32); // b
-    
-    i_bMux.c[0][1] <== 1; // i
-    i_bMux.c[1][1] <== signExtension(12, 32); // i
-    
-    ib_ursiMux.c[0][0] <== u_rsiMux.out[0]; // ursi
-    ib_ursiMux.c[1][0] <== u_rsiMux.out[1]; // ursi
-    
-    ib_ursiMux.c[0][1] <== i_bMux.out[0]; // ib
-    ib_ursiMux.c[1][1] <== i_bMux.out[1]; // ib
-    
-    j_ibursiMux.c[0][0] <== ib_ursiMux.out[0]; // ibursi
-    j_ibursiMux.c[1][0] <== ib_ursiMux.out[1]; // ibursi
-    
-    j_ibursiMux.c[0][1] <== 5; // j
-    j_ibursiMux.c[1][1] <== signExtension(20, 32); // j
-
-    component insTypeBin = Num2Bits(3);
-    insTypeBin.in <== j_ibursiMux.out[0];
-
-    component rs1Num = Bits2Num(5);
-    component rs2Num = Bits2Num(5);
-    component rdNum = Bits2Num(5);
-    for (var ii = 0; ii < 5; ii++) {
-        rs1Num.in[ii] <== insBin.out[15 + ii];
-        rs2Num.in[ii] <== insBin.out[20 + ii];
-        rdNum.in[ii] <== insBin.out[7 + ii];
-    }
-
-    // set easy outputs
-    rs1 <== rs1Num.out;
-    rs2 <== rs2Num.out;
-    rd <== rdNum.out * (1 - insTypeBin.out[1]);
-    useImm <== 1 - insBin.out[5];
-    neqOpcode <== insBin.out[12];
-    rOpcode <== insBin.out[4] + insBin.out[6];
-    storeOpcode <== insBin.out[5];
-
-    // set imm
-
-    component immINum = Bits2Num(12);
-    component immSBNum = Bits2Num(12);
-    component immUJNum = Bits2Num(20);
-
-    for (var ii = 0; ii < 12; ii++) {
-        immINum.in[ii] <== insBin.out[20 + ii];
-    }
-    for (var ii = 0; ii < 5; ii++) {
-        immSBNum.in[ii] <== insBin.out[7 + ii];
-    }
-    for (var ii = 0; ii < 7; ii++) {
-        immSBNum.in[5 + ii] <== insBin.out[25 + ii];
-    }
-    for (var ii = 0; ii < 20; ii++) {
-        immUJNum.in[ii] <== insBin.out[12 + ii];
-    }
-    
-    component sb_iImmMux = Mux1();
-    component uj_sbiImmMux = Mux1();
-
-    sb_iImmMux.c[0] <== immINum.out;
-    sb_iImmMux.c[1] <== immSBNum.out;
-    sb_iImmMux.s <== insTypeBin.out[1];
-
-    uj_sbiImmMux.c[0] <== sb_iImmMux.out;
-    uj_sbiImmMux.c[1] <== immUJNum.out;
-    uj_sbiImmMux.s <== insTypeBin.out[2];
-
-    signal rawImm;
-    rawImm <== uj_sbiImmMux.out + j_ibursiMux.out[1] * insBin.out[31]; // mux imm sign extended
-
-    component s12_rawImmMux = Mux1();
-    component s1_12rImmMux = Mux1();
-    s12_rawImmMux.c[0] <== rawImm;
-    s12_rawImmMux.c[1] <== rawImm * 2 ** 12;
-    s12_rawImmMux.s <== insTypeBin.out[2];
-    s1_12rImmMux.c[0] <== s12_rawImmMux.out;
-    s1_12rImmMux.c[1] <== rawImm * 2;
-    component immOr = OR();
-    immOr.a <== insTypeBin.out[0] * insTypeBin.out[1];
-    immOr.b <== insTypeBin.out[0] * insTypeBin.out[2];
-    s1_12rImmMux.s <== immOr.out;
-
-    imm <== s1_12rImmMux.out;
-    // imm <== rawImm;
-
-    // set insOpcode
-
-    /*
-    1   0
-    01100 0
-    00100 0
-    11000 3
-    11011 2
-    11001 2
-    01101 1
-    00101 1
-    =====
-    [2] +  2*[1] + [0]*[2] + [0]*[1]
-    000 0
-    001 0
-    011 3
-    100 1
-    101 2
-    =====
-
-    000 0 0
-    001 0->0/1-> 2
-    011 1 3
-    100 0 1
-    101 1 2
-    
-    s * 2 + [1] + [2] * (1 - [0]) TODO: try to simplify
-    000 0 0 ok
-    001 0 0 ok
-    001 1 2 ok
-    011 1 3 ok
-    100 0 1 ok
-    101 1 2 ok
-    */
-
-    // insOpcode <== insBin.out[6] * 2 + insTypeBin.out[1] + insTypeBin.out[2] * (1 - insTypeBin.out[0]);
-    insOpcode <== insBin.out[6] * 2 + insTypeBin.out[1] + insTypeBin.out[2] * (1 - insTypeBin.out[0]);
-    
-    // set funcOpcode
-
-    component f3Num = Bits2Num(3);
-    for (var ii = 0; ii < 3; ii++) {
-        f3Num.in[ii] <== insBin.out[12 + ii];
-    }
-
-    component insOpBin = Num2Bits(2);
-    insOpBin.in <== insOpcode;
-    
-    component riIncMux = Mux1();
-
-    component quickAnd = AND();
-    quickAnd.a <== insBin.out[12 + 2];
-    quickAnd.b <== 1 - insBin.out[12 + 1];
-
-    riIncMux.c[0] <== 1;
-    riIncMux.c[1] <== quickAnd.out * insBin.out[12 + 0];
-    riIncMux.s <== insTypeBin.out[0];
-
-    component funcMux = Mux2();
-    funcMux.c[0] <== f3Num.out + 8 * insBin.out[30] * riIncMux.out;
-    funcMux.c[1] <== insBin.out[5];
-    funcMux.c[2] <== insBin.out[3];
-    funcMux.c[3] <== 8 - 6 * insBin.out[25 + 2] + insBin.out[25 + 1];
-    funcMux.s[0] <== insOpBin.out[0];
-    funcMux.s[1] <== insOpBin.out[1];
-    funcOpcode <== funcMux.out;
-
-}
-
-// component main = InsDecoder();
-
-/*
-000 0
-001 1
-100 0
-101 1
-110 0
-111 1
-
-0 f3 + f7[5] * 8
-1 opcode[5]
-2 opcode[3]
-3
-
-add 0x0
-sub 0x0 + 0x8
-xor 0x4
-or 0x6
-and 0x7
-sll 0x1
-srl 0x5
-sra 0x5 + 0x8
-slt 0x2
-sltu 0x3
-
-8 - 6 * [2] + [1]
-
-0000 sub 0x8
-0001 sub 0x8
-0100 slt 0x2
-0101 slt 0x2
-0110 sltu 0x3
-0111 sltu 0x3
-
-0x20 = 00100000
-0x5 = 101
-
-000
-001
-010
-011
-100
-101
-110
-111
-
-[2] * (1 - [1]) * [0]
-
-*/
+// component main {public [root0, root1]} = ValidVMStep_Flat(16);
