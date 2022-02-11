@@ -6,7 +6,7 @@ include "./lib/shifter.circom";
 include "../node_modules/circomlib/circuits/mux2.circom";
 include "../node_modules/circomlib/circuits/mux3.circom";
 
-// TODO: look at actual cpu designs for optimization inspo
+// TODO: look at actual cpu designs for optimization inspo [?]
 
 /*
 binary-binary

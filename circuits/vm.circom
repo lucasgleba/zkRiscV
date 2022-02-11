@@ -9,7 +9,9 @@ include "../node_modules/circomlib/circuits/gates.circom";
 
 // TODO: make names more consistent
 // TODO: load vs fetch
-// TODO: check r and m values are never going to be out of bounds
+// TODO: check r and m values are never going to be out of bounds [!]
+//          How to handle input state having values out of bounds [?]
+// TODO: add merklelized state [!]
 
 function LOG2_PROGRAM_SIZE() {
     return 6;
@@ -77,47 +79,6 @@ template K_Parser() {
     rMux.s <== instructionType_bin[2];
     kR <== rMux.out;
 }
-
-// TODO: is the value in an R never gonna be out of bounds [?]
-// template RStore() {
-//     signal input in_dec;
-//     // signal input instructionType_bin[INSTRUCTION_TYPE_SIZE()];
-//     signal input k;
-//     signal input rd_bin[R_ADDRESS_SIZE()];
-//     signal input rIn[N_REGISTERS()];
-//     signal output rOut[N_REGISTERS()];
-//     component k = NOT();
-//     // k.in <== instructionType_bin[1]; // isnt this for fmt instead of type?? TODO [!!!]
-//     component registerStore = RV32I_Register_Store();
-//     registerStore.k <== k.out;
-//     for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) registerStore.address_bin[ii] <== rd_bin[ii];
-//     registerStore.in <== in_dec;
-//     for (var ii = 0; ii < N_REGISTERS(); ii++) registerStore.rIn[ii] <== rIn[ii];
-//     for (var ii = 0; ii < N_REGISTERS(); ii++) rOut[ii] <== registerStore.rOut[ii];
-// }
-
-// // TODO: use funct constants to assign var value once, easier to reuse
-// template MStore() {
-//     signal input in_bin[R_SIZE()];
-//     signal input pointer_dec;
-//     signal input instructionType_bin[INSTRUCTION_TYPE_SIZE()];
-//     signal input opcode_bin_6_2[OPCODE_6_2_SIZE()];
-//     signal input mIn[DATA_SIZE()];
-//     signal output mOut[DATA_SIZE()];
-
-//     component inValue_dec = Bits2Num(M_SLOT_SIZE());
-//     for (var ii = 0; ii < M_SLOT_SIZE(); ii++) inValue_dec.in[ii] <== in_bin[ii];
-
-//     component k = AND();
-//     k.a <== instructionType_bin[2];
-//     k.b <== opcode_bin_6_2[3];
-//     component memoryStore = Memory64_Store1(DATA_START());
-//     memoryStore.k <== k.out;
-//     memoryStore.pointer_dec <== pointer_dec;
-//     memoryStore.in <== inValue_dec.out;
-//     for (var ii = 0; ii < DATA_SIZE(); ii++) memoryStore.mIn[ii] <== mIn[ii];
-//     for (var ii = 0; ii < DATA_SIZE(); ii++) mOut[ii] <== memoryStore.mOut[ii];
-// }
 
 template NewRDValueDecider() {
     signal input aluOut_dec;
