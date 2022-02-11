@@ -1,0 +1,4 @@
+// program is all 0s
+// decoder ignores last two bits so will read all instructions as load
+========
+// data is all 0s
