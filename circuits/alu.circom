@@ -149,8 +149,10 @@ template ComputatorWrapped() {
         bMux.c[ii + 1][0] <== imm_bin.out[ii];
         bMux.c[ii + 1][1] <== rs2Value_bin[ii];
     }
+    component bNOT = NOT();
+    bNOT.in <== opcode_bin_6_2[4];
     component bOR = OR();
-    bOR.a <== instructionType_bin[0];
+    bOR.a <== bNOT.out;
     bOR.b <== instructionType_bin[2];
     bMux.s <== bOR.out;
 
@@ -336,4 +338,4 @@ template ALU() {
     out_dec <== bitfit.rem;
 }
 
-// component main = ALU();
+component main = ALU();
