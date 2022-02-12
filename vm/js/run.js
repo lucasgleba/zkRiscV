@@ -76,4 +76,5 @@ if (require.main === module) {
 module.exports = {
   run,
   runFile,
+  textToMemory,
 };

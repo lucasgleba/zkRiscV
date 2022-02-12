@@ -339,7 +339,7 @@ ALU         2444
 
 Decoder 13
 
-State
+State   2183
     Memory64_Load1  339  // [!] Most from Num2Bits_soft32
     Memory64_Load4  1356  // [!]
     Memory64_Store1 387 // [!]
