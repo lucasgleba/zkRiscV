@@ -1,18 +1,20 @@
 pragma circom 2.0.2;
 
-include "./lib/packHash.circom";
 include "./lib/bitify.circom";
+include "./lib/pack.circom";
 include "./decoder.circom";
 include "./state.circom";
 include "./alu.circom";
 include "../node_modules/circomlib/circuits/bitify.circom";
 include "../node_modules/circomlib/circuits/gates.circom";
+include "../node_modules/circomlib/circuits/mimcsponge.circom";
 
 // TODO: make names more consistent
 // TODO: load vs fetch
 // TODO: check r and m values are never going to be out of bounds [!]
 //          How to handle input state having values out of bounds [?]
 // TODO: add merklelized state [!]
+// TODO: make things cleaner than calling constant functions all the time
 
 function LOG2_PROGRAM_SIZE() {
     return 6;
@@ -259,21 +261,39 @@ template VMMultiStep_Flat(n) {
 }
 
 template StateHash_Flat() {
-    signal input pcIn;
-    signal input rIn[N_REGISTERS()];
-    signal input mIn[MEMORY_SIZE()];
+    signal input pc;
+    signal input r[N_REGISTERS()];
+    signal input m[MEMORY_SIZE()];
     signal output out;
 
-    var stateSize = 1 + N_REGISTERS() + MEMORY_SIZE();
+    // pack first 4 memory slots into 32-bits to use one less pack (saves 660 constraints)
+    var packHackSize = 4;
+    component pack4 = Pack(packHackSize, M_SLOT_SIZE());
+    for (var ii = 0; ii < packHackSize; ii++) pack4.in[ii] <== m[ii];
 
-    component hash = PackHash(stateSize, 8);
-    // TODO: is this packing 32-bit register as 8-bit [???]
-    // TODO: separate packing from hashing, pack rs as 32 bit and ms as 8 bit [!]
-    hash.in[0] <== pcIn;
-    for (var ii = 0; ii < N_REGISTERS(); ii++) hash.in[1 + ii] <== rIn[ii];
-    for (var ii = 0; ii < MEMORY_SIZE(); ii++) hash.in[1 + N_REGISTERS() + ii] <== mIn[ii];
+    // vars
+    var n32BitVars = 2 + N_REGISTERS(); // 2: packHack and pc
+    var n8BitVars = MEMORY_SIZE() - packHackSize;
+    var packingVars32[3] = getPackingVars(n32BitVars, R_SIZE());
+    var packingVars8[3] = getPackingVars(n8BitVars, M_SLOT_SIZE());
+    var nPacks32 = packingVars32[1];
+    var nPacks8 = packingVars8[1];
+    var nPacks = nPacks32 + nPacks8;
 
-    out <== hash.out;
+    component packs32bits = Pack(n32BitVars, R_SIZE());
+    packs32bits.in[0] <== pc;
+    for (var ii = 0; ii < N_REGISTERS(); ii++) packs32bits.in[1 + ii] <== r[ii];
+    packs32bits.in[n32BitVars - 1] <== pack4.out[0];
+    
+    component packs8bits = Pack(n8BitVars, M_SLOT_SIZE());
+    for (var ii = 0; ii < n8BitVars; ii++) packs8bits.in[ii] <== m[packHackSize + ii];
+    
+    component mimc = MiMCSponge(nPacks, 220, 1);
+    for (var ii = 0; ii < nPacks32; ii++) mimc.ins[ii] <== packs32bits.out[ii];
+    for (var ii = 0; ii < nPacks8; ii++) mimc.ins[nPacks32 + ii] <== packs8bits.out[ii];
+    mimc.k <== 0;
+    out <== mimc.outs[0];
+
 }
 
 template ValidVMMultiStep_Flat(n, rangeCheck) {
