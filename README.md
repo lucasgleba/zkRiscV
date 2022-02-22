@@ -3,6 +3,7 @@ Name ideas:
 - Medusa
 - Squid
 - Kraken
+- zkRiscV
 
 Testing arch
 - Implement VM in js in parts and test circom circuits separately and end-to-end in single and multiple steps.

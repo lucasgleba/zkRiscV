@@ -1,3 +1,7 @@
+/*
+node run.js <filepath> <steps>
+ */
+
 const fs = require("fs");
 const { multiStep } = require("./vm");
 
