@@ -32,7 +32,8 @@ function DATA_SIZE() {
     return 2 ** LOG2_DATA_SIZE();
 }
 
-function MEMORY_SIZE() {
+// Flat memory, harvard model constants
+function MEMORY_SIZE_FLAT() {
     return PROGRAM_SIZE() + DATA_SIZE();
 }
 
@@ -49,7 +50,7 @@ function DATA_START() {
 }
 
 function DATA_END() {
-    return MEMORY_SIZE();
+    return MEMORY_SIZE_FLAT();
 }
 
 
@@ -109,12 +110,12 @@ template VMStep_Flat() {
 
     signal input pcIn;
     signal input rIn[N_REGISTERS()];
-    signal input mIn[MEMORY_SIZE()];
+    signal input mIn[MEMORY_SIZE_FLAT()];
     // signal input rRoots;
     // signal input mRoots;
     signal output pcOut;
     signal output rOut[N_REGISTERS()];
-    signal output mOut[MEMORY_SIZE()];
+    signal output mOut[MEMORY_SIZE_FLAT()];
 
     // set mOut for program slice
     for (var ii = PROGRAM_START(); ii < PROGRAM_END(); ii++) {
@@ -224,10 +225,10 @@ template VMStep_Flat() {
 template VMMultiStep_Flat(n) {
     signal input pcIn;
     signal input rIn[N_REGISTERS()];
-    signal input mIn[MEMORY_SIZE()];
+    signal input mIn[MEMORY_SIZE_FLAT()];
     signal output pcOut;
     signal output rOut[N_REGISTERS()];
-    signal output mOut[MEMORY_SIZE()];
+    signal output mOut[MEMORY_SIZE_FLAT()];
 
     component steps[n];
     for (var ii = 0; ii < n; ii++) steps[ii] = VMStep_Flat();
@@ -236,7 +237,7 @@ template VMMultiStep_Flat(n) {
     for (var ii = 0; ii < N_REGISTERS(); ii++) {
         steps[0].rIn[ii] <== rIn[ii];
     }
-    for (var ii = 0; ii < MEMORY_SIZE(); ii++) {
+    for (var ii = 0; ii < MEMORY_SIZE_FLAT(); ii++) {
         steps[0].mIn[ii] <== mIn[ii];
     }
 
@@ -245,7 +246,7 @@ template VMMultiStep_Flat(n) {
         for (var jj = 0; jj < N_REGISTERS(); jj++) {
             steps[ii].rIn[jj] <== steps[ii - 1].rOut[jj];
         }
-        for (var jj = 0; jj < MEMORY_SIZE(); jj++) {
+        for (var jj = 0; jj < MEMORY_SIZE_FLAT(); jj++) {
             steps[ii].mIn[jj] <== steps[ii - 1].mOut[jj];
         }
     }
@@ -254,7 +255,7 @@ template VMMultiStep_Flat(n) {
     for (var jj = 0; jj < N_REGISTERS(); jj++) {
         rOut[jj] <== steps[n - 1].rOut[jj];
     }
-    for (var jj = 0; jj < MEMORY_SIZE(); jj++) {
+    for (var jj = 0; jj < MEMORY_SIZE_FLAT(); jj++) {
         mOut[jj] <== steps[n - 1].mOut[jj];
     }
 
@@ -263,7 +264,7 @@ template VMMultiStep_Flat(n) {
 template StateHash_Flat() {
     signal input pc;
     signal input r[N_REGISTERS()];
-    signal input m[MEMORY_SIZE()];
+    signal input m[MEMORY_SIZE_FLAT()];
     signal output out;
 
     // pack first 4 memory slots into 32-bits to use one less pack (saves 660 constraints)
@@ -273,7 +274,7 @@ template StateHash_Flat() {
 
     // vars
     var n32BitVars = 2 + N_REGISTERS(); // 2: packHack and pc
-    var n8BitVars = MEMORY_SIZE() - packHackSize;
+    var n8BitVars = MEMORY_SIZE_FLAT() - packHackSize;
     var packingVars32[3] = getPackingVars(n32BitVars, R_SIZE());
     var packingVars8[3] = getPackingVars(n8BitVars, M_SLOT_SIZE());
     var nPacks32 = packingVars32[1];
@@ -299,12 +300,12 @@ template StateHash_Flat() {
 template ValidVMMultiStep_Flat(n, rangeCheck) {
     signal input pcIn;
     signal input rIn[N_REGISTERS()];
-    signal input mIn[MEMORY_SIZE()];
+    signal input mIn[MEMORY_SIZE_FLAT()];
     signal input root0;
     signal input root1;
     signal output pcOut;
     signal output rOut[N_REGISTERS()];
-    signal output mOut[MEMORY_SIZE()];
+    signal output mOut[MEMORY_SIZE_FLAT()];
 
     // component pcRangeCheck;
     component rRangeCheck;
@@ -315,8 +316,8 @@ template ValidVMMultiStep_Flat(n, rangeCheck) {
         // pcRangeCheck.in <== pcIn;
         rRangeCheck = MultiAssertInBitRange(N_REGISTERS(), R_SIZE());
         for (var ii = 0; ii < N_REGISTERS(); ii++) rRangeCheck.in[ii] <== rIn[ii];
-        mRangeCheck = MultiAssertInBitRange(MEMORY_SIZE(), R_SIZE());
-        for (var ii = 0; ii < MEMORY_SIZE(); ii++) mRangeCheck.in[ii] <== mIn[ii];
+        mRangeCheck = MultiAssertInBitRange(MEMORY_SIZE_FLAT(), R_SIZE());
+        for (var ii = 0; ii < MEMORY_SIZE_FLAT(); ii++) mRangeCheck.in[ii] <== mIn[ii];
     }
 
     component stateHash0 = StateHash_Flat();
@@ -329,7 +330,7 @@ template ValidVMMultiStep_Flat(n, rangeCheck) {
         vm.rIn[ii] <== rIn[ii];
     }
     
-    for (var ii = 0; ii < MEMORY_SIZE(); ii++) {
+    for (var ii = 0; ii < MEMORY_SIZE_FLAT(); ii++) {
         stateHash0.mIn[ii] <== mIn[ii];
         vm.mIn[ii] <== mIn[ii];
     }
@@ -339,7 +340,7 @@ template ValidVMMultiStep_Flat(n, rangeCheck) {
     component stateHash1 = StateHash_Flat();
     stateHash1.pcIn <== vm.pcOut;
     for (var ii = 0; ii < N_REGISTERS(); ii++) stateHash1.rIn[ii] <== vm.rOut[ii];
-    for (var ii = 0; ii < MEMORY_SIZE(); ii++) stateHash1.mIn[ii] <== vm.mOut[ii];
+    for (var ii = 0; ii < MEMORY_SIZE_FLAT(); ii++) stateHash1.mIn[ii] <== vm.mOut[ii];
 
     root1 === stateHash1.out;
 
