@@ -45,6 +45,7 @@ function textToMemory(text) {
   return memory;
 }
 
+// Run in flat memory machine
 function run(memory0, steps) {
   const state = {
     m: memory0.slice(),
@@ -56,7 +57,7 @@ function run(memory0, steps) {
   console.log("\nData0:");
   console.log(state.m.slice(64, 128).join(","));
   // console.log("\npc\tinstruction");
-  multiStep(state, steps);
+  multiStep_flat(state, steps);
   console.log("");
   console.log(`Data${steps}:`);
   console.log(state.m.slice(64, 128).join(","));

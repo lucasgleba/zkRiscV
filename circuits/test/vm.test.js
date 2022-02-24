@@ -154,7 +154,7 @@ describe("vm", function () {
             },
             true
           );
-          step(state);
+          step_flat(state);
           await vmCircuit.assertOut(w, {
             pcOut: state.pc,
             rOut: state.r,

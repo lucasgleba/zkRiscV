@@ -132,7 +132,7 @@ function alu(instr, rs1Value_dec, rs2Value_dec, pcIn) {
   }
 }
 
-function step(state) {
+function step_flat(state) {
   // fetch instruction
   const rawInstr_bin = zeroExtend(
     fetchMemory(state.m, 4, state.pc).toString(2),
@@ -180,16 +180,16 @@ function step(state) {
   }
 }
 
-function multiStep(state, steps) {
+function multiStep_flat(state, steps) {
   for (let ii = 0; ii < steps; ii++) {
-    step(state);
+    step_flat(state);
   }
 }
 
 module.exports = {
-  step,
+  step_flat,
+  multiStep_flat,
   alu,
-  multiStep,
   computeWrapped,
   jump,
   loadImm,

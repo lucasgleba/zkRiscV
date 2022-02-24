@@ -1,7 +1,7 @@
 const fs = require("fs");
 const { getWasmTester } = require("./utils");
 const { textToMemory } = require("../../vm/js/run");
-const { multiStep } = require("../../vm/js/vm");
+const { multiStep_flat } = require("../../vm/js/vm");
 
 describe("run", function () {
   this.timeout(30000);
@@ -24,7 +24,7 @@ describe("run", function () {
         r: registers0.slice(),
         pc: pc0,
       };
-      multiStep(refState, nSteps);
+      multiStep_flat(refState, nSteps);
       const w = await circuit.calculateWitness(
         {
           mIn: memory0.slice(),
