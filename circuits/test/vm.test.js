@@ -1,5 +1,5 @@
 const { getWasmTester, objToBinInput } = require("./utils");
-const { step, alu, computeWrapped } = require("../../vm/js/vm");
+const { step_flat, alu, computeWrapped } = require("../../vm/js/vm");
 const { zeroExtend } = require("../../vm/js/utils");
 const { fetchRegister, fetchMemory } = require("../../vm/js/state");
 const { decodeRV32I } = require("../../vm/js/decoder");

@@ -212,7 +212,6 @@ function step_tree(state, meta) {
     mProof = getMProof();
     state.mTree.update(mPointerAdj, m);
     state.pc += 4;
-    return;
   } else if (opcodeSlice == "00000") {
     // load
     out = state.mTree._layers[0][mPointerAdj];
@@ -228,7 +227,7 @@ function step_tree(state, meta) {
     state.pc = aluOut.pcOut;
   }
 
-  if (opcodeSlice != "11000" && rd_dec > 0) {
+  if (opcodeSlice != "11000" && opcodeSlice != "01000" && rd_dec > 0) {
     // set rd
     state.r[rd_dec - 1] = out;
   }
@@ -246,7 +245,7 @@ function multiStep_tree(state, meta, steps) {
     instructionProofs: [],
   }
   for (let ii = 0; ii < steps; ii++) {
-    const helperData = step_flat(state, meta);
+    const helperData = step_tree(state, meta);
     helpers.ms.push(helperData.m);
     helpers.mProofs.push(helperData.mProof);
     helpers.instructions.push(helperData.instruction);

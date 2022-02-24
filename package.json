@@ -2,6 +2,7 @@
   "dependencies": {
     "circom_tester": "^0.0.9",
     "circomlib": "^2.0.2",
-    "circomlibjs": "github:iden3/circomlibjs"
+    "circomlibjs": "github:iden3/circomlibjs",
+    "fixed-merkle-tree": "^0.6.1"
   }
 }
