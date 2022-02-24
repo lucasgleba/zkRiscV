@@ -63,7 +63,7 @@ function textToMemory(text) {
 
 function textToMemoryTree(text) {
   const [program, data] = preprocessText(text);
-  const elements = programTextToMemory_Tree(program)
+  let elements = programTextToMemory_Tree(program)
     .concat(dataTextToMemory(data))
     .concat(new Array(48).fill(0));
   return new MerkleTree(7, elements);
@@ -130,4 +130,5 @@ module.exports = {
   run_flat,
   runFile,
   textToMemory,
+  textToMemoryTree,
 };

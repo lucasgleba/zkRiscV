@@ -220,8 +220,9 @@ function step_tree(state, meta) {
     state.pc += 4;
   } else {
     // not load/store
-    m = rawInstr_dec;
-    mProof = instrProof;
+    // m = rawInstr_dec;
+    m = 0;
+    mProof = new Array(state.mTree.levels).fill(0);
     const aluOut = alu(instr, rs1Value_dec, rs2Value_dec, state.pc);
     out = aluOut.out;
     state.pc = aluOut.pcOut;
