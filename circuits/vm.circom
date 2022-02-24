@@ -17,6 +17,7 @@ include "../node_modules/circomlib/circuits/mimcsponge.circom";
 // TODO: add merklelized state [!]
 // TODO: make things cleaner than calling constant functions all the time
 // TODO: spec cool memory optimizations
+// TODO: handle invalid instruction [?]
 
 function LOG2_PROGRAM_SIZE() {
     return 6;
@@ -413,7 +414,8 @@ template VMStep_Tree(memoryDepth) {
 }
  */
 
-template VMStep_Tree(memoryDepth) {
+// programSize: number of instructions in program
+template VMStep_Tree(memoryDepth, programSize) {
 
     signal input pcIn;
     signal input rIn[N_REGISTERS()];
@@ -427,7 +429,7 @@ template VMStep_Tree(memoryDepth) {
     signal output mRoot1;
 
     // check instruction merkle proof
-    component pcIn_bin = Num2Bits(memoryDepth);
+    component pcIn_bin = Num2Bits(memoryDepth + 2);
     pcIn_bin.in <== pcIn;
     component instructionMerkleChecker = MerkleTreeChecker(memoryDepth);
     instructionMerkleChecker.leaf <== instruction;
@@ -435,7 +437,7 @@ template VMStep_Tree(memoryDepth) {
     
     for (var ii = 0; ii < memoryDepth; ii++) {
         instructionMerkleChecker.pathElements[ii] <== instructionProof[ii];
-        instructionMerkleChecker.pathIndices[ii] <== pcIn_bin.out[ii];
+        instructionMerkleChecker.pathIndices[ii] <== pcIn_bin.out[2 + ii];
     }
 
     // decode instruction
@@ -527,11 +529,11 @@ template VMStep_Tree(memoryDepth) {
     component mMux = MultiMux1(2);
     mMux.c[0][0] <== pcIn;
     mMux.c[1][0] <== instruction;
-    mMux.c[0][1] <== mPointer.out_dec;
+    mMux.c[0][1] <== (mPointer.out_dec - programSize * 3) * 4; // program has 4 bytes/signal, data has 1.
     mMux.c[1][1] <== newRDValueDecider.out_dec;
     mMux.s <== decoder.instructionType_bin[2];
 
-    component mPathIndices = Num2Bits(memoryDepth);
+    component mPathIndices = Num2Bits(memoryDepth + 2);
     mPathIndices.in <== mMux.out[0];
 
     component mMerkleTree = MerkleTree(memoryDepth);
@@ -539,14 +541,14 @@ template VMStep_Tree(memoryDepth) {
 
      for (var ii = 0; ii < memoryDepth; ii++) {
         mMerkleTree.pathElements[ii] <== mProof[ii];
-        mMerkleTree.pathIndices[ii] <== mPathIndices.out[ii];
+        mMerkleTree.pathIndices[ii] <== mPathIndices.out[2 + ii];
     }
 
     mRoot1 <== mMerkleTree.root;
 
 }
 
-template VMMultiStep_Tree(n, memoryDepth) {
+template VMMultiStep_Tree(n, memoryDepth, programSize) {
     
     signal input pcIn;
     signal input rIn[N_REGISTERS()];
@@ -560,7 +562,7 @@ template VMMultiStep_Tree(n, memoryDepth) {
     signal output mRoot1;
 
     component steps[n];
-    for (var ii = 0; ii < n; ii++) steps[ii] = VMStep_Tree(memoryDepth);
+    for (var ii = 0; ii < n; ii++) steps[ii] = VMStep_Tree(memoryDepth, programSize);
     
     steps[0].pcIn <== pcIn;
     for (var ii = 0; ii < N_REGISTERS(); ii++) {
@@ -618,7 +620,7 @@ template StateHash_Tree() {
 
 }
 
-template ValidVMMultiStep_Tree(n, memoryDepth, rangeCheck) {
+template ValidVMMultiStep_Tree(n, memoryDepth, programSize, rangeCheck) {
     signal input pcIn;
     signal input rIn[N_REGISTERS()];
     signal input instructions[n];
@@ -631,6 +633,7 @@ template ValidVMMultiStep_Tree(n, memoryDepth, rangeCheck) {
 
     // component pcRangeCheck;
     component rRangeCheck;
+    component instructionRangeCheck;
     component mRangeCheck;
 
     if (rangeCheck == 1) {
@@ -638,6 +641,8 @@ template ValidVMMultiStep_Tree(n, memoryDepth, rangeCheck) {
         // pcRangeCheck.in <== pcIn;
         rRangeCheck = MultiAssertInBitRange(N_REGISTERS(), R_SIZE());
         for (var ii = 0; ii < N_REGISTERS(); ii++) rRangeCheck.in[ii] <== rIn[ii];
+        instructionRangeCheck = MultiAssertInBitRange(n, R_SIZE());
+        for (var ii = 0; ii < n; ii++) instructionRangeCheck.in[ii] <== instructions[ii];
         mRangeCheck = MultiAssertInBitRange(n, M_SLOT_SIZE());
         for (var ii = 0; ii < n; ii++) mRangeCheck.in[ii] <== ms[ii];
     }
@@ -649,7 +654,7 @@ template ValidVMMultiStep_Tree(n, memoryDepth, rangeCheck) {
 
     root0 === stateHash0.out;
 
-    component vm = VMMultiStep_Tree(n, memoryDepth);
+    component vm = VMMultiStep_Tree(n, memoryDepth, programSize);
     vm.pcIn <== pcIn;
     for (var ii = 0; ii < N_REGISTERS(); ii++) vm.rIn[ii] <== rIn[ii];
     vm.mRoot0 <== mRoot0;
@@ -672,6 +677,7 @@ template ValidVMMultiStep_Tree(n, memoryDepth, rangeCheck) {
 }
 
 // component main {public [root0, root1]} = ValidVMMultiStep_Flat(1, 0);
+// component main = ValidVMMultiStep_Tree(5, 5, 8, 1);
 
 /**
 

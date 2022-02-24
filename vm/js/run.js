@@ -3,7 +3,8 @@ node run.js <filepath> <steps>
  */
 
 const fs = require("fs");
-const { multiStep } = require("./vm");
+// const MerkleTree = require("fixed-merkle-tree");
+const { multiStep_flat, multiStep_tree } = require("./vm");
 
 // FLAT memory
 function textToMemory(text) {
@@ -46,7 +47,8 @@ function textToMemory(text) {
 }
 
 // Run in flat memory machine
-function run(memory0, steps) {
+function run_flat(memory0, steps) {
+
   const state = {
     m: memory0.slice(),
     r: new Array(31).fill(0),
@@ -66,7 +68,7 @@ function run(memory0, steps) {
 function runFile(filepath, steps) {
   const text = fs.readFileSync(filepath, "utf8");
   const memory = textToMemory(text);
-  run(memory, steps);
+  run_flat(memory, steps);
 }
 
 function main() {
