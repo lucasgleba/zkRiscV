@@ -689,14 +689,14 @@ template ValidVMMultiStep_Tree(n, memoryDepth, programSize, rangeCheck) {
 }
 
 // component main {public [root0, root1]} = ValidVMMultiStep_Flat(1, 0);
-// component main = ValidVMMultiStep_Tree(5, 5, 8, 1);
+component main = ValidVMMultiStep_Flat(160, 0);
 
 /**
 
 ******** CONSTRAINS ********
 
-ALU         2444
-    CompW   2397
+ALU         1823
+    CompW   1823
     LoadI   1
     Jump    3
     Branch  6
@@ -704,27 +704,28 @@ ALU         2444
 Decoder 13
 
 State   2183
-    Memory64_Load1  339  // [!] Most from Num2Bits_soft32
-    Memory64_Load4  1356  // [!]
-    Memory64_Store1 387 // [!]
+    Memory64_Load1  85
+    Memory64_Load4  340
+    Memory64_Store1 133
     RV32I_Register_Load     39
     RV32I_Register_Store    62
 
-VMStep_Flat     4780
+VMStep_Flat     2683
 StateHash_Flat  5940
 
 BitwiseXOR32    32
 BitwiseOR32     32
 BitwiseAND32    32
 
-Num2Bits_soft32     286 // [!]
 AssertInBitRange32  32
 
 LeftShift1      0
 RightShift32_1  32
-VariableShift32_right       1063 // [!]
-VariableShift32_left        1063 // [!]
-VariableBinShift32_right    760 // [!]
-VariableBinShift32_left     760 // [!]
+VariableShift32_right
+VariableShift32_left
+VariableBinShift32_right
+VariableBinShift32_left
+
+ValidVMMultiStep_Flat_160_0 441160
 
  */
