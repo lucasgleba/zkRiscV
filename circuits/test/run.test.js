@@ -12,7 +12,7 @@ describe("run", function () {
   });
   for (let ii = 0; ii < programNames.length; ii++) {
     const programName = programNames[ii];
-    it("null", async function () {
+    it(programName, async function () {
       const filepath = `../vm/js/programs/${programName}.txt`;
       const nSteps = 8;
       const text = fs.readFileSync(filepath, "utf8");
