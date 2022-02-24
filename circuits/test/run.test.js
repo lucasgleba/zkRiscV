@@ -5,7 +5,8 @@ const { multiStep_flat, multiStep_tree } = require("../../vm/js/vm");
 
 describe("run", function () {
   this.timeout(30000);
-  const programNames = ["null", "hw"];
+  // const programNames = ["null", "hw"];
+  const programNames = ["hw"];
   describe("flat", function () {
     let circuit;
     before(async function () {
@@ -47,7 +48,7 @@ describe("run", function () {
     before(async function () {
       circuit = await getWasmTester("vmMultiStep_Tree.test.circom");
     });
-    for (let ii = 1; ii < programNames.length; ii++) {
+    for (let ii = 0; ii < programNames.length; ii++) {
       const programName = programNames[ii];
       it(programName, async function () {
         const filepath = `../vm/js/programs/${programName}.txt`;
