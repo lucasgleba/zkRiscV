@@ -3,6 +3,7 @@ pragma circom 2.0.2;
 include "./shifter.circom";
 include "../../node_modules/circomlib/circuits/bitify.circom";
 
+// not used
 template Num2Bits_soft(n) {
     signal input in;
     signal output out[n];

@@ -188,8 +188,12 @@ template VMStep_Flat() {
     mPointer.rs1Value_dec <== rs1Value_dec;
     mPointer.imm_dec <== decoder.imm_dec;
 
+    signal mPointerAdj;
+    mPointerAdj <== mPointer.out_dec * decoder.instructionType_bin[2] + (1 - decoder.instructionType_bin[2]) * DATA_START();
+
     component mLoad = Memory64_Load(1, M_SLOT_SIZE(), DATA_START());
-    mLoad.pointer_dec <== mPointer.out_dec;
+    // avoid passing a big pointer when not loading
+    mLoad.pointer_dec <== mPointerAdj;
     for (var ii = 0; ii < DATA_SIZE(); ii++) mLoad.m[ii] <== mIn[DATA_START() + ii];
 
     // parse ks
@@ -202,7 +206,7 @@ template VMStep_Flat() {
     for (var ii = 0; ii < M_SLOT_SIZE(); ii++) rs2Value_7_0_dec.in[ii] <== rs2Value_bin[ii];
     component mStore = Memory64_Store1(DATA_START());
     mStore.in_dec <== rs2Value_7_0_dec.out;
-    mStore.pointer_dec <== mPointer.out_dec;
+    mStore.pointer_dec <== mPointerAdj;
     mStore.k <== ks.kM;
     for (var ii = 0; ii < DATA_SIZE(); ii++) mStore.mIn[ii] <== mIn[DATA_START() + ii];
     for (var ii = 0; ii < DATA_SIZE(); ii++) mOut[DATA_START() + ii] <== mStore.mOut[ii];

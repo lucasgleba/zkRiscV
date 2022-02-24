@@ -16,7 +16,7 @@ template Memory64_Load(fetchSize, mSlotSize, firstAddress) {
     signal output out_dec;
 
     component addresses[fetchSize];
-    for (var ii = 0; ii < fetchSize; ii++) addresses[ii] = Num2Bits_soft(log2MSize);
+    for (var ii = 0; ii < fetchSize; ii++) addresses[ii] = Num2Bits(log2MSize);
     for (var ii = 0; ii < fetchSize; ii++) addresses[ii].in <== pointer_dec + ii - firstAddress;
 
     component mux[fetchSize];
@@ -43,7 +43,7 @@ template Memory64_Store1(firstAddress) {
     signal input mIn[mSize];
     signal output mOut[mSize];
 
-    component s = Num2Bits_soft(log2MSize);
+    component s = Num2Bits(log2MSize);
     s.in <== pointer_dec - firstAddress;
     component imux = IMux6();
     for (var ii = 0; ii < log2MSize; ii++) imux.s[ii] <== s.out[ii];
