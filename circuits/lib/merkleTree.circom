@@ -18,6 +18,7 @@ template HashLeftRight() {
 
 // if s == 0 returns [in[0], in[1]]
 // if s == 1 returns [in[1], in[0]]
+// TODO: is this a switch gate [?]
 template DualMux() {
     signal input in[2];
     signal input s;

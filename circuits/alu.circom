@@ -6,7 +6,7 @@ include "./lib/shifter.circom";
 include "../node_modules/circomlib/circuits/mux2.circom";
 include "../node_modules/circomlib/circuits/mux3.circom";
 
-// TODO: look at actual cpu designs for optimization inspo
+// TODO: look at actual cpu designs for optimization inspo [?]
 
 /*
 binary-binary
@@ -82,16 +82,29 @@ template Computator() {
     for (var ii = 0; ii < R_SIZE(); ii++) bitOp.in[ii] <== xoror_andMux.out[ii];
 
     // sll, sra, slt
-    component shiftLeft = VariableShift32(R_SIZE(), 0);
-    component shiftRight = VariableShift32(R_SIZE(), 1);
+    component shiftLeft = VariableBinShift32(R_SIZE(), 0);
+    component shiftRight = VariableBinShift32(R_SIZE(), 1);
     shiftLeft.k <== 0;
     shiftRight.k <== f7_bin[5] * a_bin[R_SIZE() - 1];
-    shiftLeft.in <== a_dec;
-    shiftRight.in <== a_dec;
+    for (var ii = 0; ii < R_SIZE(); ii++) {
+        shiftLeft.in[ii] <== a_bin[ii];
+        shiftRight.in[ii] <== a_bin[ii];
+    }
     for (var ii = 0; ii < R_ADDRESS_SIZE(); ii++) {
         shiftLeft.shift[ii] <== b_bin[ii];
         shiftRight.shift[ii] <== b_bin[ii];
     }
+
+    // TODO: could be more efficient
+    component l_rMux = MultiMux1(R_SIZE());
+    for (var ii = 0; ii < R_SIZE(); ii++) {
+        l_rMux.c[ii][0] <== shiftLeft.out[ii];
+        l_rMux.c[ii][1] <== shiftRight.out[ii];
+    }
+    l_rMux.s <== f3_bin[2];
+
+    component shiftOp = Bits2Num(R_SIZE());
+    for (var ii = 0; ii < R_SIZE(); ii++) shiftOp.in[ii] <== l_rMux.out[ii];
 
     // slt, sltu
     component lt = LessThan(R_SIZE());
@@ -111,11 +124,11 @@ template Computator() {
     // mux
     component mainMux = Mux3();
     mainMux.c[0] <== add_subMux.out;
-    mainMux.c[1] <== shiftLeft.out;
+    mainMux.c[1] <== shiftOp.out;
     mainMux.c[2] <== ltMux.out;
     mainMux.c[3] <== lt.out;
     mainMux.c[4] <== bitOp.out;
-    mainMux.c[5] <== shiftRight.out;
+    mainMux.c[5] <== shiftOp.out;
     mainMux.c[6] <== bitOp.out;
     mainMux.c[7] <== bitOp.out;
     for (var ii = 0; ii < F3_SIZE(); ii++) mainMux.s[ii] <== f3_bin[ii];
@@ -346,7 +359,7 @@ template ALU() {
     pcOut_dec <== mainMux.out[1];
 
     // TODO: replace shift by bitfit template [?]
-    component bitfit = RightShift(R_SIZE(), R_SIZE());
+    component bitfit = RightShift(R_SIZE() + 1, R_SIZE());
     bitfit.in <== mainMux.out[0];
     bitfit.k <== 0;
     out_dec <== bitfit.rem;

@@ -132,7 +132,7 @@ function alu(instr, rs1Value_dec, rs2Value_dec, pcIn) {
   }
 }
 
-function step(state) {
+function step_flat(state) {
   // fetch instruction
   const rawInstr_bin = zeroExtend(
     fetchMemory(state.m, 4, state.pc).toString(2),
@@ -180,16 +180,87 @@ function step(state) {
   }
 }
 
-function multiStep(state, steps) {
+function multiStep_flat(state, steps) {
   for (let ii = 0; ii < steps; ii++) {
-    step(state);
+    step_flat(state);
   }
 }
 
+function step_tree(state, meta) {
+  // fetch instruction
+  const instrPointerAdj = state.pc / 4;
+  const rawInstr_dec = state.mTree._layers[0][instrPointerAdj];
+  const instrProof = state.mTree.path(instrPointerAdj).pathElements;
+  const rawInstr_bin = zeroExtend(rawInstr_dec.toString(2), 32);
+  // decode instruction
+  const instr = decodeRV32I(rawInstr_bin);
+  // load rs and pointer
+  const rd_dec = parseInt(instr.rd_bin, 2);
+  const rs1_dec = parseInt(instr.rs1_bin, 2);
+  const rs2_dec = parseInt(instr.rs2_bin, 2);
+  const rs1Value_dec = fetchRegister(state.r, rs1_dec);
+  const rs2Value_dec = fetchRegister(state.r, rs2_dec);
+  const mPointerAdj = rs1Value_dec + instr.imm_dec - 3 * meta.programSize;
+
+  let out, m, mProof;
+  const getMProof = () => state.mTree.path(mPointerAdj).pathElements;
+
+  const opcodeSlice = instr.opcode_bin_6_2;
+  if (opcodeSlice == "01000") {
+    // store
+    m = rs2Value_dec % 256;
+    mProof = getMProof();
+    state.mTree.update(mPointerAdj, m);
+    state.pc += 4;
+  } else if (opcodeSlice == "00000") {
+    // load
+    out = state.mTree._layers[0][mPointerAdj];
+    m = out;
+    mProof = getMProof();
+    state.pc += 4;
+  } else {
+    // not load/store
+    // m = rawInstr_dec;
+    m = 0;
+    mProof = new Array(state.mTree.levels).fill(0);
+    const aluOut = alu(instr, rs1Value_dec, rs2Value_dec, state.pc);
+    out = aluOut.out;
+    state.pc = aluOut.pcOut;
+  }
+
+  if (opcodeSlice != "11000" && opcodeSlice != "01000" && rd_dec > 0) {
+    // set rd
+    state.r[rd_dec - 1] = out;
+  }
+
+  return {
+    m, mProof, instruction: rawInstr_dec, instructionProof: instrProof,
+  }
+}
+
+function multiStep_tree(state, meta, steps) {
+  const helpers = {
+    ms: [],
+    mProofs: [],
+    instructions: [],
+    instructionProofs: [],
+  }
+  for (let ii = 0; ii < steps; ii++) {
+    const helperData = step_tree(state, meta);
+    helpers.ms.push(helperData.m);
+    helpers.mProofs.push(helperData.mProof);
+    helpers.instructions.push(helperData.instruction);
+    helpers.instructionProofs.push(helperData.instructionProof);
+  }
+  return helpers;
+}
+
 module.exports = {
-  step,
+  step_flat,
+  multiStep_flat,
+  step_tree,
+  multiStep_tree,
   alu,
-  multiStep,
   computeWrapped,
   jump,
   loadImm,

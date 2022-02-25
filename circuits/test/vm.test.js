@@ -1,12 +1,12 @@
 const { getWasmTester, objToBinInput } = require("./utils");
-const { step, alu, computeWrapped } = require("../../vm/js/vm");
+const { step_flat, alu, computeWrapped } = require("../../vm/js/vm");
 const { zeroExtend } = require("../../vm/js/utils");
 const { fetchRegister, fetchMemory } = require("../../vm/js/state");
 const { decodeRV32I } = require("../../vm/js/decoder");
 const { opcodes_6_2, sampleOpcode } = require("./sample");
 
-// TODO: test alu modules and alu end to end
 // TODO: test against modded risc-v tests
+// TODO: test valid vm multistep
 
 function instrToDecArray(instruction_bin) {
   const arr = new Array(4).fill(null);
@@ -24,7 +24,7 @@ describe("vm", function () {
   const data = new Array(64).fill(null);
   for (let ii = 0; ii < data.length; ii++) data[ii] = ii;
   before(async function () {
-    vmCircuit = await getWasmTester("vm.test.circom");
+    vmCircuit = await getWasmTester("VMStep.test.circom");
     aluCircuit = await getWasmTester("alu.test.circom");
     computatorWCircuit = await getWasmTester("computatorWrapped.test.circom");
   });
@@ -154,7 +154,7 @@ describe("vm", function () {
             },
             true
           );
-          step(state);
+          step_flat(state);
           await vmCircuit.assertOut(w, {
             pcOut: state.pc,
             rOut: state.r,
