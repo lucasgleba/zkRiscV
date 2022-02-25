@@ -1,6 +1,6 @@
-# zkSubleq
+# zkRiscV
 
-A zero-knowledge VM based on the rv32i Risc-V instruction set with almost full compatibility.
+A zero-knowledge VM based on the RV32I Risc-V instruction set with almost full compatibility.
 
 Generate zk-SNARKS proving that N steps of a program where executed correctly.
 
@@ -36,7 +36,7 @@ The program counter and registers are always passed as signals as they are very 
 
 ## RV32I compatibility
 
-zkRiscV supports all the instructions in the instruction set except for multi-byte memory load/store and environment calls. Transpilation is straightforward (not implemented yet [transpiler/](transpiler/)).
+zkRiscV supports all the instructions in the instruction set except for multi-byte memory load/store and environment calls. Transpilation is straightforward (not implemented yet: [transpiler/](transpiler/)).
 
 ## See also
 
