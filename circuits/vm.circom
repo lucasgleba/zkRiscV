@@ -689,7 +689,7 @@ template ValidVMMultiStep_Tree(n, memoryDepth, programSize, rangeCheck) {
 }
 
 // component main {public [root0, root1]} = ValidVMMultiStep_Flat(1, 0);
-component main = ValidVMMultiStep_Flat(160, 0);
+// component main = ValidVMMultiStep_Flat(160, 0);
 
 /**
 
