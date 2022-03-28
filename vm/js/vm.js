@@ -208,9 +208,9 @@ function step_tree(state, meta) {
   const opcodeSlice = instr.opcode_bin_6_2;
   if (opcodeSlice == "01000") {
     // store
-    m = rs2Value_dec % 256;
+    m = state.mTree._layers[0][mPointerAdj];
     mProof = getMProof();
-    state.mTree.update(mPointerAdj, m);
+    state.mTree.update(mPointerAdj, rs2Value_dec % 256);
     state.pc += 4;
   } else if (opcodeSlice == "00000") {
     // load

@@ -535,25 +535,42 @@ template VMStep_Tree(memoryDepth, programSize) {
     for (var ii = 0; ii < M_SLOT_SIZE(); ii++) rs2Value_7_0_dec.in[ii] <== rs2Value_bin[ii];
     
     // TODO: abstract cleanly
+    // TODO: check this again
+
+    component mPathIndices = Num2Bits(memoryDepth);
+    mPathIndices.in <== mPointer.out_dec - 3 * programSize * decoder.instructionType_bin[2];
+
+    component mMerkleTree0 = MerkleTree(memoryDepth);
+    mMerkleTree0.leaf <== m;
+
+    for (var ii = 0; ii < memoryDepth; ii++) {
+        mMerkleTree0.pathElements[ii] <== mProof[ii];
+        mMerkleTree0.pathIndices[ii] <== mPathIndices.out[ii];
+    }
+
+    component mr0_mrMux = Mux1();
+    mr0_mrMux.c[0] <== mRoot0;
+    mr0_mrMux.c[1] <== mMerkleTree0.root;
+    mr0_mrMux.s <== decoder.instructionType_bin[2];
+
+    mr0_mrMux.out === mRoot0;
+
     component m_rs2Mux = Mux1();
     m_rs2Mux.c[0] <== m;
     m_rs2Mux.c[1] <== rs2Value_7_0_dec.out;
     m_rs2Mux.s <== decoder.opcode_bin_6_2[3];
 
-    component mPathIndices = Num2Bits(memoryDepth);
-    mPathIndices.in <== mPointer.out_dec - 3 * programSize * decoder.instructionType_bin[2];
-
-    component mMerkleTree = MerkleTree(memoryDepth);
-    mMerkleTree.leaf <== m_rs2Mux.out;
+    component mMerkleTree1 = MerkleTree(memoryDepth);
+    mMerkleTree1.leaf <== m_rs2Mux.out;
 
      for (var ii = 0; ii < memoryDepth; ii++) {
-        mMerkleTree.pathElements[ii] <== mProof[ii];
-        mMerkleTree.pathIndices[ii] <== mPathIndices.out[ii];
+        mMerkleTree1.pathElements[ii] <== mProof[ii];
+        mMerkleTree1.pathIndices[ii] <== mPathIndices.out[ii];
     }
 
     component mRootMux = Mux1();
     mRootMux.c[0] <== mRoot0;
-    mRootMux.c[1] <== mMerkleTree.root;
+    mRootMux.c[1] <== mMerkleTree1.root;
     mRootMux.s <== decoder.instructionType_bin[2];
 
     mRoot1 <== mRootMux.out;
