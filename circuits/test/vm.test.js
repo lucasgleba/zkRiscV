@@ -24,7 +24,7 @@ describe("vm", function () {
   const data = new Array(64).fill(null);
   for (let ii = 0; ii < data.length; ii++) data[ii] = ii;
   before(async function () {
-    vmCircuit = await getWasmTester("VMStep.test.circom");
+    vmCircuit = await getWasmTester("vmStep.test.circom");
     aluCircuit = await getWasmTester("alu.test.circom");
     computatorWCircuit = await getWasmTester("computatorWrapped.test.circom");
   });

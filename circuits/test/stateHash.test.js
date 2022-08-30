@@ -9,9 +9,6 @@ describe("stateHash", function () {
     const key = 0;
     hashFunc = (arr) => mimcSponge.F.toString(mimcSponge.multiHash(arr, key), 10);
   });
-  after(async () => {
-    globalThis.curve_bn128.terminate();
-  });
   it("ok", async function () {
     const state = {
       pc: 0,

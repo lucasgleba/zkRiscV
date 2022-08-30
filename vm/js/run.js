@@ -3,7 +3,7 @@ node run.js <filepath> <steps>
  */
 
 const fs = require("fs");
-const MerkleTree = require("fixed-merkle-tree");
+const MerkleTree = require("fixed-merkle-tree").MerkleTree;
 const { multiStep_flat, multiStep_tree } = require("./vm");
 
 function programTextToMemory_Flat(programText) {
@@ -61,12 +61,13 @@ function textToMemory(text) {
   return programTextToMemory_Flat(program).concat(dataTextToMemory(data));
 }
 
-function textToMemoryTree(text) {
+function textToMemoryTree(text, hash, zeroElement) {
   const [program, data] = preprocessText(text);
   let elements = programTextToMemory_Tree(program)
     .concat(dataTextToMemory(data))
     .concat(new Array(48).fill(0));
-  return new MerkleTree(7, elements);
+  
+  return new MerkleTree(7, elements, { hashFunction: hash, zeroElement: zeroElement });
 }
 
 // Run in flat memory machine
